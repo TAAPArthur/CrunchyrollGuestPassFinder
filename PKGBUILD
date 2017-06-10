@@ -18,7 +18,7 @@ _srcDir="TAAPCrunchyrollBot-master"
 
 package() {
 
-  mkdir -p "$pkgdir/usr/bin/$pkgname"       
+  mkdir -p "$pkgdir/usr/bin/"       
   mkdir -p "$pkgdir/usr/lib/$pkgname"
   mv "$_srcDir"/taapcrunchyroll-bot "$pkgdir/usr/bin/"
   mv "$_srcDir"/*.py "$pkgdir/usr/lib/$pkgname/"
