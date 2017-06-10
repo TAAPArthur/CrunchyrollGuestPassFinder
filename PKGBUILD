@@ -17,9 +17,9 @@ source=("https://github.com/TAAPArthur/TAAPCrunchyrollBot/archive/master.zip")
 _srcDir="TAAPCrunchyrollBot-master"
 
 package() {
-ls -l *
 
-  mkdir "$pkgdir/usr/lib/$pkgname"
-  mv "$_srcDir"/taapcrunchyroll-bot.sh "$pkgdir/usr/bin/"
+  mkdir -p "$pkgdir/usr/bin/$pkgname"       
+  mkdir -p "$pkgdir/usr/lib/$pkgname"
+  mv "$_srcDir"/taapcrunchyroll-bot "$pkgdir/usr/bin/"
   mv "$_srcDir"/*.py "$pkgdir/usr/lib/$pkgname/"
 }
