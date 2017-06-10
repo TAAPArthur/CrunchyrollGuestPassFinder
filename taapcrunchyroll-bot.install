@@ -1,0 +1,8 @@
+post_install() {
+    sudo chmod 755 /usr/bin/taapcrunchyroll-bot
+}
+
+post_upgrade() {
+    post_install $1
+}
+
