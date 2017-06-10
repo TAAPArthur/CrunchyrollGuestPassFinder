@@ -1,5 +1,5 @@
 post_install() {
-    sudo chmod 755 /usr/bin/taapcrunchyroll-bot
+    sudo chmod 755 /usr/bin/taapcrunchyroll-bot.sh
 }
 
 post_upgrade() {
