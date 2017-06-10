@@ -4,27 +4,27 @@ pkgname='taapcrunchyroll-bot'
 
 configDir="$HOME/.config/taapcrunchyroll-bot"
 configFile="$configDir/taapcrunchyroll-bot.conf"
-if [ ! $baseDir -e ]; then 
-        mkdir -p $baseDir
+if [ ! -e "$configDir" ]; then 
+        mkdir -p "$configDir"
 fi 
-if [ ! $configFile -e ]; then 
-        touch $configFile     
+if [ ! -e "$configFile" ]; then 
+        touch "$configFile"
 fi 
-exec >> (tee -i "$configDir/bot.log")
+exec > >(tee -i "$configDir/bot.log")
 exec 2>&1
 
 numberOfGroups=1
 getCredentialsScript=0
 updateUserInfoScript=0
 
-source $configFile
+source "$configFile"
 
-cd "/usr/lib/$pkgname/"
+cd "/usr/lib/$pkgname/" || exit 2
 
 for i in `seq 1 $numberOfGroups`;
   do
        credentials=$getCredentialsScript $i
-       uname= $(echo "$credentials" |cut -d " " -f1)
+       uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
 			python3 activateCruncyrollGuestPass.py $credentials
