@@ -151,6 +151,7 @@ class CrunchyrollGuestPassFinder:
     def saveScreenshot(self,fileName="screenshot.png"):
         #self.output("saving screen shot to ",fileName)
         #self.driver.save_screenshot(fileName)
+        pass
 
     def output(self,*message):
         
