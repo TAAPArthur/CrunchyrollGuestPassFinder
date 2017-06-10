@@ -19,7 +19,15 @@ updateUserInfoScript=0
 
 source "$configFile"
 
-cd "/usr/lib/$pkgname/" || exit 2
+
+echo "numberOfGroups '$numberOfGroups'"
+echo "getCredentialsScript '$getCredentialsScript'"
+echo "updateUserInfoScript '$updateUserInfoScript'"
+
+
+cd "$configDir" || exit 2
+pythonScriptFolder="/usr/lib/$pkgname/" 
+
 
 for i in `seq 1 $numberOfGroups`;
   do
@@ -27,8 +35,7 @@ for i in `seq 1 $numberOfGroups`;
        uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
-			python3 activateCruncyrollGuestPass.py $credentials
-
+			python3 "$pythonScriptFolder/activateCruncyrollGuestPass.py" $credentials
 			if [ "$?" == "0" ]; then
 				echo "Guest pass obtained; Updating user info" 
 				$updateUserInfoScript $i $uname
