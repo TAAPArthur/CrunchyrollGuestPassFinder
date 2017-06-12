@@ -12,14 +12,12 @@ license=('MIT')
 depends=('python3' 'python-selenium' 'phantomjs')
 md5sums=('SKIP')
 
-install=$pkgname.install
 source=("https://github.com/TAAPArthur/TAAPCrunchyrollBot/archive/master.zip")
 _srcDir="TAAPCrunchyrollBot-master"
 
 package() {
 
-  mkdir -p "$pkgdir/usr/bin/"       
-  mkdir -p "$pkgdir/usr/lib/$pkgname"
-  mv "$_srcDir"/taapcrunchyroll-bot "$pkgdir/usr/bin/"
-  mv "$_srcDir"/*.py "$pkgdir/usr/lib/$pkgname/"
+  cd "$_srcDir"
+  install -D -m 0755 "taapcrunchyroll-bot" "$pkgdir/usr/bin/"
+  install -D -m 0755 "*.py" "$pkgdir/usr/lib/$pkgname/"
 }

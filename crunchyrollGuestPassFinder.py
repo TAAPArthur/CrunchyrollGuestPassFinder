@@ -159,4 +159,4 @@ class CrunchyrollGuestPassFinder:
         formattedMessage=message[0]
         for i in range(1,len(message)):
             formattedMessage+=str(message[i])
-        print (time,formattedMessage)
+        print (time,formattedMessage, flush=True)

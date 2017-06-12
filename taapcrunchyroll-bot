@@ -31,14 +31,14 @@ pythonScriptFolder="/usr/lib/$pkgname/"
 
 for i in `seq 1 $numberOfGroups`;
   do
-       credentials=$getCredentialsScript $i
+       credentials=$($getCredentialsScript $i)
        uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
 			python3 "$pythonScriptFolder/activateCruncyrollGuestPass.py" $credentials
 			if [ "$?" == "0" ]; then
 				echo "Guest pass obtained; Updating user info" 
-				$updateUserInfoScript $i $uname
+				$updateUserInfoScript "$i" $credentials
 			else 
 				echo "pyhton exited with error code $?"
 			fi
