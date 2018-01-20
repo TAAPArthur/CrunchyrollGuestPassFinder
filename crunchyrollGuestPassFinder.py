@@ -165,7 +165,6 @@ class CrunchyrollGuestPassFinder:
 
 if __name__ == "__main__":
     if len(sys.argv)>3:
-        echo
         CrunchyrollGuestPassFinder.KILL_TIME=int(sys.argv[2])
     crunchyrollGuestPassFinder=CrunchyrollGuestPassFinder(sys.argv[1],sys.argv[2])
     crunchyrollGuestPassFinder.startFreeAccess()
