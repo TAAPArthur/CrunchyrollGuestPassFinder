@@ -16,7 +16,8 @@ exec 2>&1
 numberOfGroups=1
 getCredentialsScript=0
 updateUserInfoScript=0
-
+killTime=43200 #12 hours
+errorScript=0
 source "$configFile"
 
 
@@ -24,6 +25,8 @@ echo "numberOfGroups '$numberOfGroups'"
 echo "getCredentialsScript '$getCredentialsScript'"
 echo "updateUserInfoScript '$updateUserInfoScript'"
 
+echo "errorScript '$updateUserInfoScript'"
+echo "killTime '$killTime'"
 
 cd "$configDir" || exit 2
 pythonScriptFolder="/usr/lib/$pkgname/" 
@@ -35,12 +38,16 @@ for i in `seq 1 $numberOfGroups`;
        uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
-			python3 "$pythonScriptFolder/activateCruncyrollGuestPass.py" $credentials
-			if [ "$?" == "0" ]; then
+			python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
+			errorCode = "$?"
+			if [ "$errorCode" == "0" ]; then
 				echo "Guest pass obtained; Updating user info" 
 				$updateUserInfoScript "$i" $credentials
 			else 
-				echo "pyhton exited with error code $?"
+				echo "pyhton exited with error code $errorCode"
+				if [ "$errorScript" == "1" ]; then 
+				    $errorScript "$errorCode"
+				fi
 			fi
 	else
 

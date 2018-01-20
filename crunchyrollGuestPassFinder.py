@@ -22,18 +22,25 @@ class CrunchyrollGuestPassFinder:
     invalidResponse="Coupon code not found."
     driver = webdriver.PhantomJS(service_log_path="/dev/null",service_args=['--ssl-protocol=TLSv1'])
     
+    KILL_TIME = 12 * 60 * 60
+    
     def __init__(self,username,password):
+        self.startTime=time.time()
         self.output("starting bot")
         self.username=username
         self.password=password
         self.login()
-        
+    
+    def checkTimeLeft(errorCode=1):
+        if time.time() - self.startTime >= KILL_TIME:
+            exit(errorCode)
     def login(self):
         self.driver.get(self.loginPage)
         self.output("attemting to login to "+self.username)
 
         while True:
             try:
+                checkTimeLeft(2)
                 #self.saveScreenshot("~attemptingToLogin.png")
                 self.waitForElementToLoad("login_form_name")
                 self.driver.find_element_by_id("login_form_name").send_keys(self.username)
@@ -76,7 +83,7 @@ class CrunchyrollGuestPassFinder:
                 except TimeoutException:
                     self.output("Could not find indicator of non-premium account; exiting")
                     return None
-                
+            checkTimeLeft()
             for i in range(len(unusedGuestCodes)):
                 try:
                     self.driver.get(self.redeemGuestPassPage+unusedGuestCodes[i])
@@ -160,3 +167,9 @@ class CrunchyrollGuestPassFinder:
         for i in range(1,len(message)):
             formattedMessage+=str(message[i])
         print (time,formattedMessage, flush=True)
+
+if __name__ == "main":
+    if len(sys.argv)>2:
+        CrunchyrollGuestPassFinder.KILL_TIME=int(sys.argv[2])
+    crunchyrollGuestPassFinder=CrunchyrollGuestPassFinder(sys.argv[1],sys.argv[2])
+    crunchyrollGuestPassFinder.startFreeAccess()
