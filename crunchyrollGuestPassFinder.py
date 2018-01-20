@@ -20,19 +20,22 @@ class CrunchyrollGuestPassFinder:
     GUEST_PASS_PATTERN="[A-Z0-9]{11}"
     timeout=20
     invalidResponse="Coupon code not found."
-    driver = webdriver.PhantomJS(service_log_path="/dev/null",service_args=['--ssl-protocol=TLSv1'])
+    
     
     KILL_TIME = 12 * 60 * 60
     
     def __init__(self,username,password):
+    
+        self.driver = webdriver.PhantomJS(service_log_path="/dev/null",service_args=['--ssl-protocol=any'])
+        self.driver.implicitly_wait(self.timeout)
         self.startTime=time.time()
         self.output("starting bot")
         self.username=username
         self.password=password
         self.login()
     
-    def checkTimeLeft(errorCode=1):
-        if time.time() - self.startTime >= KILL_TIME:
+    def checkTimeLeft(self,errorCode=64):
+        if time.time() - self.startTime >= self.KILL_TIME:
             exit(errorCode)
         else:
             return True
@@ -40,19 +43,9 @@ class CrunchyrollGuestPassFinder:
         self.driver.get(self.loginPage)
         self.output("attemting to login to "+self.username)
 
-        while True:
-            try:
-                checkTimeLeft(2)
-                #self.saveScreenshot("~attemptingToLogin.png")
-                self.waitForElementToLoad("login_form_name")
-                self.driver.find_element_by_id("login_form_name").send_keys(self.username)
-                self.driver.find_element_by_id("login_form_password").send_keys(self.password)
-                self.driver.find_element_by_class_name("type-primary").click()
-                self.output("exiting loop")
-                break    
-            except:
-                self.output("page hasn't really loaded yet")
-                time.sleep(5)
+        self.driver.find_element_by_id("login_form_name").send_keys(self.username)
+        self.driver.find_element_by_id("login_form_password").send_keys(self.password)
+        self.driver.find_element_by_class_name("type-primary").click()
         #self.saveScreenshot("loggedIn.png~")
         self.output("logged in")
         self.output(self.driver.current_url)
@@ -85,7 +78,7 @@ class CrunchyrollGuestPassFinder:
                 except TimeoutException:
                     self.output("Could not find indicator of non-premium account; exiting")
                     return None
-            checkTimeLeft()
+            self.checkTimeLeft()
             for i in range(len(unusedGuestCodes)):
                 try:
                     self.driver.get(self.redeemGuestPassPage+unusedGuestCodes[i])
@@ -170,8 +163,9 @@ class CrunchyrollGuestPassFinder:
             formattedMessage+=str(message[i])
         print (time,formattedMessage, flush=True)
 
-if __name__ == "main":
-    if len(sys.argv)>2:
+if __name__ == "__main__":
+    if len(sys.argv)>3:
+        echo
         CrunchyrollGuestPassFinder.KILL_TIME=int(sys.argv[2])
     crunchyrollGuestPassFinder=CrunchyrollGuestPassFinder(sys.argv[1],sys.argv[2])
     crunchyrollGuestPassFinder.startFreeAccess()
