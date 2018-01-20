@@ -34,6 +34,8 @@ class CrunchyrollGuestPassFinder:
     def checkTimeLeft(errorCode=1):
         if time.time() - self.startTime >= KILL_TIME:
             exit(errorCode)
+        else:
+            return True
     def login(self):
         self.driver.get(self.loginPage)
         self.output("attemting to login to "+self.username)

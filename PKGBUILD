@@ -13,7 +13,7 @@ depends=('python3' 'python-selenium' 'phantomjs')
 md5sums=('SKIP')
 
 source=("git://github.com/TAAPArthur/TAAPCrunchyrollBot.git")
-_srcDir="TAAPCrunchyrollBot-master"
+_srcDir="TAAPCrunchyrollBot"
 
 package() {
 

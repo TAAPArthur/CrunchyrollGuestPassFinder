@@ -39,7 +39,7 @@ for i in `seq 1 $numberOfGroups`;
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
 			python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
-			errorCode = "$?"
+			errorCode="$?"
 			if [ "$errorCode" == "0" ]; then
 				echo "Guest pass obtained; Updating user info" 
 				$updateUserInfoScript "$i" $credentials
