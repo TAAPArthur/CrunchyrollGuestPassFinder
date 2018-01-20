@@ -22,7 +22,7 @@ class CrunchyrollGuestPassFinder:
     invalidResponse="Coupon code not found."
     
     
-    KILL_TIME = 12 * 60 * 60
+    KILL_TIME = 43200
     
     def __init__(self,username,password):
     
@@ -165,6 +165,7 @@ class CrunchyrollGuestPassFinder:
 
 if __name__ == "__main__":
     if len(sys.argv)>3:
+        print(int(sys.argv[3]))
         CrunchyrollGuestPassFinder.KILL_TIME=int(sys.argv[3])
     crunchyrollGuestPassFinder=CrunchyrollGuestPassFinder(sys.argv[1],sys.argv[2])
     crunchyrollGuestPassFinder.startFreeAccess()
