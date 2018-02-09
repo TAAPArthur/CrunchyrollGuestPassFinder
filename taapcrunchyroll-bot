@@ -29,7 +29,7 @@ echo "errorScript '$updateUserInfoScript'"
 echo "killTime '$killTime'"
 
 cd "$configDir" || exit 2
-pythonScriptFolder="/usr/lib/$pkgname/" 
+pythonScriptFolder="/usr/lib/$pkgname" 
 
 
 for i in `seq 1 $numberOfGroups`;
