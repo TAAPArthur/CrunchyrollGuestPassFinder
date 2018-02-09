@@ -38,12 +38,12 @@ for i in `seq 1 $numberOfGroups`;
        uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
-			python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
-			errorCode="$?"
-			if [ "$errorCode" == "0" ]; then
+			
+			if python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"; then
 				echo "Guest pass obtained; Updating user info" 
 				$updateUserInfoScript "$i" $credentials
 			else 
+			    errorCode="$?"
 				echo "pyhton exited with error code $errorCode"
 				if [ "$errorScript" == "1" ]; then 
 				    $errorScript "$errorCode"
