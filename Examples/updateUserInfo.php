@@ -1,9 +1,22 @@
 <?php
+
+	sleep(60);
 	$con = mysqli_connect("localhost","root",trim(file_get_contents("/var/www/password")),"CrunchyrollPremium");
-	$groupID=+$argv[1];
-	$premiumAccountToUseNext=+$argv[4];
-	echo "premiumAccountToUseNext $premiumAccountToUseNext";
-	$con->query("UPDATE Groups SET PremiumStartDate=NOW() WHERE ID=$groupID");
-	$con->query("UPDATE Users SET ActivatedGroupMemberPosition=$premiumAccountToUseNext WHERE GroupID=$groupID");
+	$success=+$argv[1]
+	$groupID=+$argv[2];
+	$premiumAccountToUseNext=+$argv[5];
+	if($success==0){
+		echo "premiumAccountToUseNext $premiumAccountToUseNext";
+		$con->query("UPDATE Groups SET PremiumStartDate=NOW(), ActivatedGroupMemberPosition=$premiumAccountToUseNext 
+		WHERE ID=$groupID");
+		shell_exec("taapbot \"$argv[2] is now active\"");
+	}
+	else{
+		$con->query("UPDATE Groups SET ActivatedGroupMemberPosition=$premiumAccountToUseNext WHERE ID=$groupID");
+		shell_exec("taapbot \"$argv[2] failed to be activated\"");
+
+	}
+
 	$con->close();
+
 ?>

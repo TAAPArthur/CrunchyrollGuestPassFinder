@@ -17,7 +17,7 @@ numberOfGroups=1
 getCredentialsScript=0
 updateUserInfoScript=0
 killTime=43200 #12 hours
-errorScript=0
+loop=2
 source "$configFile"
 
 
@@ -33,25 +33,28 @@ pythonScriptFolder="/usr/lib/$pkgname"
 
 
 for i in $(seq 1 $numberOfGroups);
-  do
-       credentials=$($getCredentialsScript "$i")
-       uname=$(echo "$credentials" |cut -d " " -f1)
-       if [ "$credentials" != "0" ]; then
-			echo "Obtaining guest pass for $uname of Group $i";
-			
-			if python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"; then
-				echo "Guest pass obtained; Updating user info" 
-				$updateUserInfoScript "$i" $credentials
-			else 
-			    errorCode="$?"
-				echo "pyhton exited with error code $errorCode"
-				if [ "$errorScript" -eq 1 ]; then 
-				    echo "running '$errorScript $errorCode'"
-				    $errorScript "$errorCode"
-				fi
-			fi
-	    else
-		    echo "Account '$uname' is still activated"
+    do  
+        n=$loop
+        while [[ $loop -le 0 || $n -ne 0 ]]; do
+            n=$n-1
+            credentials=$($getCredentialsScript "$i")
+            uname=$(echo "$credentials" |cut -d " " -f1)
+            if [ "$credentials" != "0" ]; then
+                echo "Obtaining guest pass for $uname of Group $i";
+                
+                python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
+                errorCode="$?"
+                if [[ $errorCode -eq 0 ]]; then
+	                echo "Guest pass obtained; Updating user info" 
+                else
+                    echo "exited with error code $errorCode"
+                fi
+                
+                $updateUserInfoScript $errorCode "$i" $credentials
+                
+            else
+                echo "Account '$uname' is still activated"
 
-       fi
+            fi
+       done
   done
