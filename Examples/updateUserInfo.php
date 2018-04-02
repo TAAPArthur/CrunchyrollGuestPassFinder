@@ -2,7 +2,7 @@
 
 	sleep(60);
 	$con = mysqli_connect("localhost","root",trim(file_get_contents("/var/www/password")),"CrunchyrollPremium");
-	$success=+$argv[1]
+	$success=+$argv[1];
 	$groupID=+$argv[2];
 	$premiumAccountToUseNext=+$argv[5];
 	if($success==0){

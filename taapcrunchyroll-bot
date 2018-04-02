@@ -16,7 +16,7 @@ exec 2>&1
 numberOfGroups=1
 getCredentialsScript=0
 updateUserInfoScript=0
-killTime=43200 #12 hours
+killTime=36000 #12 hours
 loop=2
 source "$configFile"
 
