@@ -10,7 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import traceback
-
+from selenium.webdriver.firefox.options import Options
 
 class CrunchyrollGuestPassFinder:
     endOfGuestPassThreadPage = "http://www.crunchyroll.com/forumtopic-803801/the-official-guest-pass-thread-read-opening-post-first?pg=last"
@@ -25,11 +25,12 @@ class CrunchyrollGuestPassFinder:
     KILL_TIME = 43200
     
     def __init__(self,username,password):
-    
-        self.driver = webdriver.PhantomJS(service_log_path="/dev/null",service_args=['--ssl-protocol=any'])
+        self.output("starting bot")
+        options = Options()
+        options.add_argument("--headless")
+        self.driver = webdriver.Firefox(log_path="/dev/null", firefox_options=options)
         self.driver.implicitly_wait(self.timeout)
         self.startTime=time.time()
-        self.output("starting bot")
         self.username=username
         self.password=password
         self.login()
@@ -40,8 +41,9 @@ class CrunchyrollGuestPassFinder:
         else:
             return True
     def login(self):
-        self.driver.get(self.loginPage)
         self.output("attemting to login to "+self.username)
+        self.driver.get(self.loginPage)
+        
 
         self.driver.find_element_by_id("login_form_name").send_keys(self.username)
         self.driver.find_element_by_id("login_form_password").send_keys(self.password)

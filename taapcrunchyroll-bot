@@ -32,9 +32,9 @@ cd "$configDir" || exit 2
 pythonScriptFolder="/usr/lib/$pkgname" 
 
 
-for i in `seq 1 $numberOfGroups`;
+for i in $(seq 1 $numberOfGroups);
   do
-       credentials=$($getCredentialsScript $i)
+       credentials=$($getCredentialsScript "$i")
        uname=$(echo "$credentials" |cut -d " " -f1)
        if [ "$credentials" != "0" ]; then
 			echo "Obtaining guest pass for $uname of Group $i";
@@ -45,13 +45,13 @@ for i in `seq 1 $numberOfGroups`;
 			else 
 			    errorCode="$?"
 				echo "pyhton exited with error code $errorCode"
-				if [ "$errorScript" == "1" ]; then 
+				if [ "$errorScript" -eq 1 ]; then 
+				    echo "running '$errorScript $errorCode'"
 				    $errorScript "$errorCode"
 				fi
 			fi
-	else
-
-		echo "Account '$uname' is still activated"
+	    else
+		    echo "Account '$uname' is still activated"
 
        fi
   done

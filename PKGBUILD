@@ -2,14 +2,14 @@
 
 
 pkgname='taapcrunchyroll-bot'
-pkgver='1.1.0'
+pkgver='1.1.1'
 _language='en-US'
 pkgrel=1
 pkgdesc='Automatically get Crunchyroll guest passes for free'
 
 arch=('any')
 license=('MIT')
-depends=('python3' 'python-selenium' 'phantomjs')
+depends=('python3' 'python-selenium' 'geckodriver' 'firefox')
 md5sums=('SKIP')
 
 source=("git://github.com/TAAPArthur/TAAPCrunchyrollBot.git")
