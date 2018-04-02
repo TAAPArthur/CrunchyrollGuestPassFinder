@@ -13,8 +13,7 @@
 	}
 	else{
 		$con->query("UPDATE Groups SET ActivatedGroupMemberPosition=$premiumAccountToUseNext WHERE ID=$groupID");
-		shell_exec("taapbot \"$argv[2] failed to be activated\"");
-
+		shell_exec("taapbot \"$argv[2] failed to be activated. error code:$success \"");
 	}
 
 	$con->close();
