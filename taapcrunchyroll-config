@@ -1,0 +1,6 @@
+#numberOfGroups=1
+#getCredentialsScript="php getUserInfo.php"
+#updateUserInfoScript="php updateUserInfo.php"
+#killTime=36000
+#CHAT_ID=
+#TOKEN=

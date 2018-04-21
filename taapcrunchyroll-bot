@@ -2,24 +2,52 @@
 
 pkgname='taapcrunchyroll-bot'
 
-configDir="$HOME/.config/taapcrunchyroll-bot"
-configFile="$configDir/taapcrunchyroll-bot.conf"
+configDir="$HOME/.config/$pkgname"
+configFile="$configDir/$pkgname.conf"
+pythonScriptFolder="/usr/lib/$pkgname" 
 if [ ! -e "$configDir" ]; then 
         mkdir -p "$configDir"
 fi 
 if [ ! -e "$configFile" ]; then 
         touch "$configFile"
 fi 
+
+
+cd "$configDir" || exit 2
+
+if [[ "$1" == "-e" ]];then
+    ${EDITOR:-nano} "$configFile"
+    exit 0;
+fi
+
+function activateAccount(){
+    uname=$1
+    password=$2
+    echo "Obtaining guest pass for $uname of Group $i";            
+    python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" "$uname" "$password" "$killTime"
+    errorCode="$?"
+    if [[ $errorCode -eq 0 ]]; then
+        echo "Guest pass obtained; Updating user info" 
+    else
+        echo "exited with error code $errorCode"
+    fi
+    return $errorCode
+}
+
 exec > >(tee -i "$configDir/bot.log")
 exec 2>&1
-
 numberOfGroups=1
-getCredentialsScript=0
-updateUserInfoScript=0
+getCredentialsScript=
+updateUserInfoScript=
 killTime=36000 #12 hours
 loop=2
 source "$configFile"
-
+if [[ -z $getCredentialsScript || -z $updateUserInfoScript ]]; then
+    echo -n "Username:"; read username
+    echo -n "Password:"; read -s password
+    activateAccount "$username" "$password"
+    exit
+fi
 
 echo "numberOfGroups '$numberOfGroups'"
 echo "getCredentialsScript '$getCredentialsScript'"
@@ -28,10 +56,6 @@ echo "updateUserInfoScript '$updateUserInfoScript'"
 echo "errorScript '$updateUserInfoScript'"
 echo "killTime '$killTime'"
 
-cd "$configDir" || exit 2
-pythonScriptFolder="/usr/lib/$pkgname" 
-
-
 for i in $(seq 1 $numberOfGroups);
     do  
         n=$loop
@@ -39,18 +63,13 @@ for i in $(seq 1 $numberOfGroups);
             n=$n-1
             credentials=$($getCredentialsScript "$i")
             uname=$(echo "$credentials" |cut -d " " -f1)
+	        password=$(echo "$credentials" |cut -d " " -f2)
+	        groupPosition=$(echo "$credentials" |cut -d " " -f3)
+
             if [ "$credentials" != "0" ]; then
-                echo "Obtaining guest pass for $uname of Group $i";
-                
-                python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
-                errorCode="$?"
-                if [[ $errorCode -eq 0 ]]; then
-	                echo "Guest pass obtained; Updating user info" 
-                else
-                    echo "exited with error code $errorCode"
-                fi
-                
-                $updateUserInfoScript $errorCode "$i" $credentials
+                activateAccount "$uname" "$password"
+                errorCode=$?
+                [ -z "$updateUserInfoScript" ] &&   $updateUserInfoScript $errorCode "$i" "$groupPosition" && break
                 
             else
                 echo "Account '$uname' is still activated"
