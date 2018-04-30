@@ -22,7 +22,8 @@ class CrunchyrollGuestPassFinder:
     invalidResponse="Coupon code not found."
     
     
-    KILL_TIME = 43200
+    KILL_TIME = 43200 # after x seconds the program will quit with exit code 64
+    DELAY = 20 # the delay between refreshing the guest pass page
     
     def __init__(self,username,password):
         self.output("starting bot")
@@ -62,6 +63,7 @@ class CrunchyrollGuestPassFinder:
     def startFreeAccess(self):
         count=0
         usedCodes=[]
+        timeOfLastCheck=0
         while True:
             count+=1
             
@@ -72,14 +74,16 @@ class CrunchyrollGuestPassFinder:
                     unusedGuestCodes.append(guestCodes[i])
             if len(unusedGuestCodes)>0:
                 self.output("Trial ",count,": found ",len(unusedGuestCodes)," codes: ",unusedGuestCodes,"; ", len(usedCodes), " others have been used: ",usedCodes)
-            elif count%1200==0:
-                self.output ("Trial ",count)
+            elif time.time()-timeOfLastCheck<600:
+                
+                self.output("Trial ",count)
                 sys.stdout.flush()
                 try:
                     self.waitForElementToLoadByClass("premium")
                 except TimeoutException:
                     self.output("Could not find indicator of non-premium account; exiting")
                     return None
+                timeOfLastCheck=time.time()
             self.checkTimeLeft()
             for i in range(len(unusedGuestCodes)):
                 try:
@@ -108,13 +112,13 @@ class CrunchyrollGuestPassFinder:
                     self.output(self.driver.current_url)
                 except TimeoutException:
                     usedCodes.append(unusedGuestCodes[i])
-                    self.output("timeout occured with ",unusedGuestCodes[i])
+                    self.output("timeout occured with ", unusedGuestCodes[i])
                 except:
                     self.output("error:",  sys.exc_info()[0])
                     traceback.print_exc()
                     pass
             
-            time.sleep(1)
+            time.sleep(self.DELAY)
     
     def postTakenGuestPass(self,guestPass):
         try:
@@ -166,8 +170,14 @@ class CrunchyrollGuestPassFinder:
         print (time,formattedMessage, flush=True)
 
 if __name__ == "__main__":
-    if len(sys.argv)>4:
-        print(int(sys.argv[4]))
-        CrunchyrollGuestPassFinder.KILL_TIME=int(sys.argv[4])
-    crunchyrollGuestPassFinder=CrunchyrollGuestPassFinder(sys.argv[1],sys.argv[2])
+    if len(sys.argv) >= 4:        
+        CrunchyrollGuestPassFinder.KILL_TIME = int(sys.argv[3])
+        if len(sys.argv) >= 5:
+            CrunchyrollGuestPassFinder.DELAY = int(sys.argv[4])
+    elif len(sys.argv) < 3:
+        username = input("Username:")
+        password = input("Password:")
+    else:
+        username, password = sys.argv[1], sys.argv[2]
+    crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
     crunchyrollGuestPassFinder.startFreeAccess()

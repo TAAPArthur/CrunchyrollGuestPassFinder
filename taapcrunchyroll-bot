@@ -16,7 +16,7 @@ exec 2>&1
 numberOfGroups=1
 getCredentialsScript=0
 updateUserInfoScript=0
-killTime=36000 #12 hours
+killTime=36000 #10 hours
 loop=2
 source "$configFile"
 
@@ -39,10 +39,11 @@ for i in $(seq 1 $numberOfGroups);
             n=$n-1
             credentials=$($getCredentialsScript "$i")
             uname=$(echo "$credentials" |cut -d " " -f1)
+            password=$(echo "$credentials" |cut -d " " -f2)
             if [ "$credentials" != "0" ]; then
                 echo "Obtaining guest pass for $uname of Group $i";
                 
-                python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" $credentials "$killTime"
+                python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" "$uname" "$password" "$killTime"
                 errorCode="$?"
                 if [[ $errorCode -eq 0 ]]; then
 	                echo "Guest pass obtained; Updating user info" 
