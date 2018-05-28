@@ -4,7 +4,7 @@
 	$con = mysqli_connect("localhost","root",trim(file_get_contents("/var/www/password")),"CrunchyrollPremium");
 	$success=+$argv[1];
 	$groupID=+$argv[2];
-	$premiumAccountToUseNext=+$argv[5];
+	$premiumAccountToUseNext=+$argv[3];
 	if($success==0){
 		echo "premiumAccountToUseNext $premiumAccountToUseNext";
 		$con->query("UPDATE Groups SET PremiumStartDate=NOW(), ActivatedGroupMemberPosition=$premiumAccountToUseNext 
@@ -13,7 +13,7 @@
 	}
 	else{
 		$con->query("UPDATE Groups SET ActivatedGroupMemberPosition=$premiumAccountToUseNext WHERE ID=$groupID");
-		shell_exec("taapbot \"$argv[2] failed to be activated. error code:$success \"");
+		shell_exec("taapmessage \"$argv[2] failed to be activated. error code:$success \"");
 	}
 
 	$con->close();
