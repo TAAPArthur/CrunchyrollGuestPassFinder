@@ -25,7 +25,7 @@ class CrunchyrollGuestPassFinder:
     endOfGuestPassThreadPage = "http://www.crunchyroll.com/forumtopic-803801/the-official-guest-pass-thread-read-opening-post-first?pg=last"
     redeemGuestPassPage = "http://www.crunchyroll.com/coupon_redeem?code="
     loginPage = "https://www.crunchyroll.com/login"
-    homePage = "http://www.crunchyroll.com"
+    homePage = "http://www.crunchyroll.com/"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
     timeout = 20
     invalidResponse = "Coupon code not found."
@@ -44,11 +44,12 @@ class CrunchyrollGuestPassFinder:
         firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
         options = Options()
         options.add_argument("--headless")
-        self.driver = webdriver.Firefox(log_path="/dev/null", firefox_options=options, firefox_profile=firefox_profile)
+        self.driver = webdriver.Firefox(log_path="/dev/null", firefox_options=options,firefox_profile=firefox_profile)
         self.driver.implicitly_wait(self.timeout)
         self.startTime = time.time()
         self.username = username
         self.password = password
+        
     
     def isTimeout(self):
         if time.time() - self.startTime >= self.KILL_TIME:
@@ -91,11 +92,11 @@ class CrunchyrollGuestPassFinder:
             self.saveScreenshot("alreadyPremium.png")
             return False
     def startFreeAccess(self):
-        count = 0
+        count = -1
         usedCodes = []
         timeOfLastCheck = 0
         self.status=Status.SEARCHING
-        self.output("searcing for guest passes")
+        self.output("searching for guest passes")
         if not self.isAccountNonPremium():
             return None
         while True:
@@ -126,7 +127,7 @@ class CrunchyrollGuestPassFinder:
                     self.driver.find_element_by_id("couponcode_redeem_form").submit()
                     
                     self.output("URL after submit:",self.driver.current_url)
-                    if self.driver.current_url.startswith(self.homePage):
+                    if self.driver.current_url == self.homePage:
                         #self.saveScreenshot("~guest_pass_activated_question")
                         self.waitForElementToLoad("message_box")
                         message=self.driver.find_element_by_id("message_box").text
@@ -203,11 +204,8 @@ class CrunchyrollGuestPassFinder:
         for i in range(1,len(message)):
             formattedMessage+=str(message[i])
         print (time,formattedMessage, flush=True)
-    def getStatus(self):
-        return self.status.value;
 
 if __name__ == "__main__":
-
     if len(sys.argv) >= 4:        
         CrunchyrollGuestPassFinder.KILL_TIME = int(sys.argv[3])
         if len(sys.argv) >= 5:
@@ -220,5 +218,5 @@ if __name__ == "__main__":
     crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
     if crunchyrollGuestPassFinder.login():
         crunchyrollGuestPassFinder.startFreeAccess()
-    print("status = %d" % crunchyrollGuestPassFinder.getStatus())
+    print("status = %d" % int(crunchyrollGuestPassFinder.status))
     exit(crunchyrollGuestPassFinder.status)

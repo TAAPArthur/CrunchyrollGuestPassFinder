@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ "$EUID" -eq 0 ];then 
-    echo "WARNING: running this script as root is a security concern"
-fi
-
 pkgname='taapcrunchyroll-bot'
 
 configDir="$HOME/.config/$pkgname"
@@ -32,8 +28,6 @@ function activateAccount(){
     errorCode="$?"
     if [[ $errorCode -eq 0 ]]; then
         echo "Guest pass obtained; Updating user info" 
-    elif [[ $errorCode -eq 1 ]]; then
-        echo "Guest pass obtained; through unkown means" 
     else
         echo "exited with error code $errorCode"
     fi
@@ -48,7 +42,7 @@ getCredentialsScript=
 updateUserInfoScript=
 killTime=36000 #10 hours
 
-numberOfAttempts=2
+loop=2
 source "$configFile"
 if [[ -z $getCredentialsScript || -z $updateUserInfoScript ]]; then
     echo -n "Username:"; read username
@@ -60,38 +54,30 @@ fi
 echo "numberOfGroups '$numberOfGroups'"
 echo "getCredentialsScript '$getCredentialsScript'"
 echo "updateUserInfoScript '$updateUserInfoScript'"
+
+echo "errorScript '$updateUserInfoScript'"
 echo "killTime '$killTime'"
-echo "numberOfAttempts '$numberOfAttempts'"
 
+for i in $(seq 1 $numberOfGroups);
+    do  
+        n=$loop
+        while [[ $loop -le 0 || $n -ne 0 ]]; do
+            n=$n-1
+            credentials=$($getCredentialsScript "$i")
+            uname=$(echo "$credentials" |cut -d " " -f1)
 
-function groupActivation(){
-    groupNumber="$1"
-    n="$numberOfAttempts"
-    while [[ $numberOfAttempts -le 0 || $n -ne 0 ]]; do
-        n=$n-1
-        credentials=$($getCredentialsScript "$groupNumber")
-        uname=$(echo "$credentials" |cut -d " " -f1)
+	        password=$(echo "$credentials" |cut -d " " -f2)
+	        groupPosition=$(echo "$credentials" |cut -d " " -f3)
 
-        password=$(echo "$credentials" |cut -d " " -f2)
-        groupPosition=$(echo "$credentials" |cut -d " " -f3)
+            if [ "$credentials" != "0" ]; then
+                activateAccount "$uname" "$password"
+                errorCode=$?
+                [ -z "$updateUserInfoScript" ] &&   $updateUserInfoScript $errorCode "$i" "$groupPosition" && break
 
-        if [ "$credentials" != "0" ]; then
-            activateAccount "$uname" "$password"
-            errorCode=$?
-            [ -z "$updateUserInfoScript" ] && $updateUserInfoScript $errorCode "$i" "$groupPosition"
-            if [ "$errorCode" -eq 0 ]; then
-                return 0
-            elif [ "$errorCode" -eq 1 ]; then
-                return 0
+                
+            else
+                echo "Account '$uname' is still activated"
+
             fi
-            
-        else
-            echo "Account '$uname' is still activated"
-
-        fi
-   done
-}
-
-for i in $(seq 1 $numberOfGroups);  do  
-    groupActivation "$i"
-done
+       done
+  done
