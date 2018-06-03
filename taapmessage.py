@@ -21,4 +21,6 @@ if __name__ == "__main__":
         if len(sys.argv)==4:
             updater = Updater(token=sys.argv[1])
             sendMessage(sys.argv[2],sys.argv[3])
+        else
+            print("not enough args")
 
