@@ -12,6 +12,9 @@ import traceback
 from selenium.webdriver.firefox.options import Options
 from enum import Enum
 
+from pathlib import Path
+
+CONFIG_DIR=str(Path.home())+"/.config/taapcrunchyroll-bot/"
 class Status(Enum):
     INIT=61
     LOGIN_FAILED=62
@@ -62,7 +65,7 @@ class CrunchyrollGuestPassFinder:
         self.driver.find_element_by_id("login_form_name").send_keys(self.username)
         self.driver.find_element_by_id("login_form_password").send_keys(self.password)
         self.driver.find_element_by_class_name("type-primary").click()
-        #self.saveScreenshot("loggedIn.png~")
+        self.saveScreenshot("loggedIn.png~")
         self.output("logged in")
         self.output(self.driver.current_url)
         if self.driver.current_url==self.loginPage:
@@ -197,7 +200,7 @@ class CrunchyrollGuestPassFinder:
     def saveScreenshot(self,fileName="screenshot.png"):
         fileName+=".png"
         self.output("saving screen shot to ",fileName)
-        self.driver.save_screenshot(fileName)
+        self.driver.save_screenshot(CONFIG_DIR+fileName)
         pass
 
     def output(self,*message):
