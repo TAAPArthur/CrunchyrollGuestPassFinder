@@ -13,6 +13,7 @@ from selenium.webdriver.firefox.options import Options
 from enum import Enum
 
 from pathlib import Path
+from random import shuffle
 
 CONFIG_DIR=str(Path.home())+"/.config/taapcrunchyroll-bot/"
 class Status(Enum):
@@ -27,6 +28,7 @@ class Status(Enum):
 class CrunchyrollGuestPassFinder:
     endOfGuestPassThreadPage = "http://www.crunchyroll.com/forumtopic-803801/the-official-guest-pass-thread-read-opening-post-first?pg=last"
     redeemGuestPassPage = "http://www.crunchyroll.com/coupon_redeem?code="
+    failedGuestPassRedeemPage="http://www.crunchyroll.com/coupon_redeem"
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
@@ -90,7 +92,7 @@ class CrunchyrollGuestPassFinder:
         except:
             self.output("Could not find indicator of non-premium account; exiting")
             self.status=Status.ACCOUNT_ALREADY_ACTIVATED
-            self.saveScreenshot("alreadyPremium.png")
+            self.saveScreenshot("alreadyPremium")
             return False
     def startFreeAccess(self):
         count = -1
@@ -113,6 +115,7 @@ class CrunchyrollGuestPassFinder:
             if len(unusedGuestCodes) > 0:
                 self.output("Trial ",count,": found ",len(unusedGuestCodes)," codes: ",unusedGuestCodes,"; ", len(usedCodes), " others have been used: ",usedCodes)
                 timeOfLastCheck = time.time()
+                shuffle(unusedGuestCodes)
             elif time.time()-timeOfLastCheck > 600:
                 self.output("Trial ",count, "url",self.driver.current_url)
                 sys.stdout.flush()
@@ -130,17 +133,21 @@ class CrunchyrollGuestPassFinder:
                     self.driver.find_element_by_id("couponcode_redeem_form").submit()
                     
                     self.output("URL after submit:",self.driver.current_url)
-                    if self.driver.current_url.startswith(self.homePage):
+                    if not self.driver.current_url.startswith(self.failedGuestPassRedeemPage) and  self.driver.current_url.startswith(self.homePage):
                         #self.saveScreenshot("~guest_pass_activated_question")
                         self.waitForElementToLoad("message_box")
                         message=self.driver.find_element_by_id("message_box").text
-                        self.output(message)
+                        self.output("Message:",message)
 
                         if self.invalidResponse not in message:
                             self.saveScreenshot("~guest_pass_activated")
-                            self.postTakenGuestPass(unusedGuestCodes[i])
-                            self.output("found guest pass %s; exiting" % str(unusedGuestCodes[i]))
-                            return unusedGuestCodes[i]
+                            if self.isAccountNonPremium():
+                                self.output("False positive. account is still non premium")
+                                continue
+                            else:                        
+                                self.postTakenGuestPass(unusedGuestCodes[i])
+                                self.output("found guest pass %s; exiting" % str(unusedGuestCodes[i]))
+                                return unusedGuestCodes[i]
                         else:
                             usedCodes.append(unusedGuestCodes[i])
                     else:
