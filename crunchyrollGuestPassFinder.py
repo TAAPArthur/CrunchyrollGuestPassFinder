@@ -22,7 +22,7 @@ class Status(Enum):
     LOGGED_IN=62
     SEARCHING=63
     ACCOUNT_ACTIVATED=0
-    ACCOUNT_ALREADY_ACTIVATED=65
+    ACCOUNT_ALREADY_ACTIVATED=0
     TIMEOUT=64
 
 class CrunchyrollGuestPassFinder:
@@ -172,11 +172,10 @@ class CrunchyrollGuestPassFinder:
         try:
             self.output("attempting to post that guest pass was taken")
             self.driver.get(self.endOfGuestPassThreadPage)
-            self.waitForElementToLoad("newforumpost")
             self.driver.find_element_by_id("newforumpost").send_keys(guestPass+" has been taken.\nThanks")
+            self.saveScreenshot("posted_guest_pass")
             self.driver.find_element_by_name("post_btn").click()
 
-            self.saveScreenshot("posted_guest_pass")
         except:
             self.output("failed to post guest pass");
                 
