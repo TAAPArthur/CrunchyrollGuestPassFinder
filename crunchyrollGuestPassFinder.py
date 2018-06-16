@@ -22,7 +22,7 @@ class Status(Enum):
     LOGGED_IN=62
     SEARCHING=63
     ACCOUNT_ACTIVATED=0
-    ACCOUNT_ALREADY_ACTIVATED=0
+    ACCOUNT_ALREADY_ACTIVATED=65
     TIMEOUT=64
 
 class CrunchyrollGuestPassFinder:
@@ -62,8 +62,6 @@ class CrunchyrollGuestPassFinder:
     def login(self):
         self.output("attemting to login to "+self.username)
         self.driver.get(self.loginPage)
-        
-
         self.driver.find_element_by_id("login_form_name").send_keys(self.username)
         self.driver.find_element_by_id("login_form_password").send_keys(self.password)
         self.driver.find_element_by_class_name("type-primary").click()
@@ -85,13 +83,14 @@ class CrunchyrollGuestPassFinder:
         element_present = EC.presence_of_element_located((By.CLASS_NAME, clazz))
         WebDriverWait(self.driver, self.timeout).until(element_present)
         
-    def isAccountNonPremium(self):
+    def isAccountNonPremium(self,init=False):
         try:
             self.waitForElementToLoadByClass("premium")
             return True
         except:
             self.output("Could not find indicator of non-premium account; exiting")
-            self.status=Status.ACCOUNT_ALREADY_ACTIVATED
+            if init:
+                self.status=Status.ACCOUNT_ALREADY_ACTIVATED
             self.saveScreenshot("alreadyPremium")
             return False
     def startFreeAccess(self):
@@ -100,7 +99,7 @@ class CrunchyrollGuestPassFinder:
         timeOfLastCheck = 0
         self.status=Status.SEARCHING
         self.output("searching for guest passes")
-        if not self.isAccountNonPremium():
+        if not self.isAccountNonPremium(True):
             return None
         while True:
             count += 1
@@ -147,6 +146,7 @@ class CrunchyrollGuestPassFinder:
                             else:                        
                                 self.postTakenGuestPass(unusedGuestCodes[i])
                                 self.output("found guest pass %s; exiting" % str(unusedGuestCodes[i]))
+                                self.status=ACCOUNT_ACTIVATED
                                 return unusedGuestCodes[i]
                         else:
                             usedCodes.append(unusedGuestCodes[i])
@@ -165,6 +165,7 @@ class CrunchyrollGuestPassFinder:
             if not self.isAccountNonPremium():
                 self.saveScreenshot("~guest_pass_already_activated")
                 self.output("currentURL:",self.driver.current_url)
+                self.status=ACCOUNT_ACTIVATED
                 return None
 
 
@@ -216,11 +217,13 @@ class CrunchyrollGuestPassFinder:
         for i in range(1,len(message)):
             formattedMessage+=str(message[i])
         print(time,formattedMessage, flush=True)
+
     def getStatus(self):
         return self.status.value
 
+
 if __name__ == "__main__":
-    
+
     if len(sys.argv) < 3:
         username = input("Username:")
         password = input("Password:")

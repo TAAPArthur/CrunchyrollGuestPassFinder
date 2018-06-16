@@ -4,13 +4,13 @@ pkgname='taapcrunchyroll-bot'
 
 configDir="$HOME/.config/$pkgname"
 configFile="$configDir/$pkgname.conf"
-pythonScriptFolder="/usr/lib/$pkgname" 
-if [ ! -e "$configDir" ]; then 
+pythonScriptFolder="/usr/lib/$pkgname"
+if [ ! -e "$configDir" ]; then
         mkdir -p "$configDir"
-fi 
-if [ ! -e "$configFile" ]; then 
+fi
+if [ ! -e "$configFile" ]; then
         touch "$configFile"
-fi 
+fi
 
 
 cd "$configDir" || exit 2
@@ -23,11 +23,12 @@ fi
 function activateAccount(){
     uname=$1
     password=$2
-    echo "Obtaining guest pass for $uname of Group $i";            
+    echo "Obtaining guest pass for $uname of Group $i";
     python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" "$uname" "$password" "$killTime"
     errorCode="$?"
     if [[ $errorCode -eq 0 ]]; then
-        echo "Guest pass obtained; Updating user info" 
+        echo "Guest pass obtained; Updating user info"
+        [ ! -z "$updateUserInfoScript" ] &&   $updateUserInfoScript $errorCode "$i" "$groupPosition"
     else
         echo "exited with error code $errorCode"
     fi
@@ -70,11 +71,7 @@ for i in $(seq 1 $numberOfGroups);
 	        groupPosition=$(echo "$credentials" |cut -d " " -f3)
 
             if [ "$credentials" != "0" ]; then
-                activateAccount "$uname" "$password"
-                errorCode=$?
-                [ -z "$updateUserInfoScript" ] &&   $updateUserInfoScript $errorCode "$i" "$groupPosition" && break
-
-                
+                activateAccount "$uname" "$password" && break
             else
                 echo "Account '$uname' is still activated"
 
