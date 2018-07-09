@@ -62,19 +62,22 @@ echo "killTime '$killTime'"
 for i in $(seq 1 $numberOfGroups);
     do  
         n=$loop
+        offset=0
         while [[ $loop -le 0 || $n -ne 0 ]]; do
             n=$n-1
-            credentials=$($getCredentialsScript "$i")
-            uname=$(echo "$credentials" |cut -d " " -f1)
+            credentials=$($getCredentialsScript "$i" "$offset")
+            errCode=$?
+            
+            if [ "$credentials" != "0" && $errCode -eq 0]; then
+                uname=$(echo "$credentials" |cut -d " " -f1)
 
-	        password=$(echo "$credentials" |cut -d " " -f2)
-	        groupPosition=$(echo "$credentials" |cut -d " " -f3)
-
-            if [ "$credentials" != "0" ]; then
+	            password=$(echo "$credentials" |cut -d " " -f2)
+	            groupPosition=$(echo "$credentials" |cut -d " " -f3)
                 activateAccount "$uname" "$password" && break
+                offset=$offset+1
             else
                 echo "Account '$uname' is still activated"
-
+                break
             fi
        done
   done

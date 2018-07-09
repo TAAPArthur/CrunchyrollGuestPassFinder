@@ -10,12 +10,16 @@
 	         )
 	         As Temp ON Temp.GroupID=Users.GroupID
 	         WHERE Active=1 and Users.`GroupID`=$groupID
-	         ORDER BY (Users.GroupPosition-1+Size-ActivatedGroupMemberPosition)%Size LIMIT 1
+	         ORDER BY (Users.GroupPosition-1+Size-ActivatedGroupMemberPosition)%Size;
 		";
 	$result=$con->query("$query");
 
+    if(!isset($argv[2]))
+        $argv[2]=0;
 	if($result->num_rows){
-		$row = $result->fetch_array();
+	    
+        for($i=0;$i<int($argv[2])+1;$i++)
+    		$row = $result->fetch_array();
 		echo $row[0]." ".$row[1]." ".$row[2];
 	}
     else echo 0;

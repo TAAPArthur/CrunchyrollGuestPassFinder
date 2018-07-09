@@ -146,7 +146,7 @@ class CrunchyrollGuestPassFinder:
                             else:                        
                                 self.postTakenGuestPass(unusedGuestCodes[i])
                                 self.output("found guest pass %s; exiting" % str(unusedGuestCodes[i]))
-                                self.status=ACCOUNT_ACTIVATED
+                                self.status=Status.ACCOUNT_ACTIVATED
                                 return unusedGuestCodes[i]
                         else:
                             usedCodes.append(unusedGuestCodes[i])
@@ -165,7 +165,7 @@ class CrunchyrollGuestPassFinder:
             if not self.isAccountNonPremium():
                 self.saveScreenshot("~guest_pass_already_activated")
                 self.output("currentURL:",self.driver.current_url)
-                self.status=ACCOUNT_ACTIVATED
+                self.status=Status.ACCOUNT_ACTIVATED
                 return None
 
 
