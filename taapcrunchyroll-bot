@@ -12,7 +12,6 @@ if [ ! -e "$configFile" ]; then
         touch "$configFile"
 fi
 
-
 cd "$configDir" || exit 2
 
 if [[ "$1" == "-e" ]];then
@@ -20,18 +19,23 @@ if [[ "$1" == "-e" ]];then
     exit 0;
 fi
 
+function sendMessage(){
+[ ! -z "$updateUserInfoScript" ] &&   $updateUserInfoScript "$1" "$i" "$groupPosition" "$2"
+}
+
 function activateAccount(){
     uname=$1
     password=$2
     echo "Obtaining guest pass for $uname of Group $i";
     python3 "$pythonScriptFolder/crunchyrollGuestPassFinder.py" "$uname" "$password" "$killTime"
     errorCode="$?"
+
     if [[ $errorCode -eq 0 ]]; then
-        echo "Guest pass obtained; Updating user info"
-        [ ! -z "$updateUserInfoScript" ] &&   $updateUserInfoScript $errorCode "$i" "$groupPosition"
+        msg="Guest pass obtained; Updating user info"
     else
-        echo "exited with error code $errorCode"
+        msg="exited with error code $errorCode"
     fi
+    sendMessage "$errorCode" "$msg"
     return $errorCode
 }
 
@@ -68,15 +72,18 @@ for i in $(seq 1 $numberOfGroups);
             credentials=$($getCredentialsScript "$i" "$offset")
             errCode=$?
             
-            if [ "$credentials" != "0" && $errCode -eq 0]; then
+            if [ "$credentials" != "0" && $errCode -eq 0 ]; then
                 uname=$(echo "$credentials" |cut -d " " -f1)
 
 	            password=$(echo "$credentials" |cut -d " " -f2)
 	            groupPosition=$(echo "$credentials" |cut -d " " -f3)
                 activateAccount "$uname" "$password" && break
                 offset=$offset+1
+            elif [ $errCode -ne 0 ]; then 
+                sendMessage $errCode "Could not load credentials"
+                break
             else
-                echo "Account '$uname' is still activated"
+                sendMessage "-1" "Account was already activated"
                 break
             fi
        done

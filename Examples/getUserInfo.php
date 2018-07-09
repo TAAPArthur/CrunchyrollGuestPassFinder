@@ -18,7 +18,7 @@
         $argv[2]=0;
 	if($result->num_rows){
 	    
-        for($i=0;$i<int($argv[2])+1;$i++)
+        for($i=0;$i<+$argv[2]+1;$i++)
     		$row = $result->fetch_array();
 		echo $row[0]." ".$row[1]." ".$row[2];
 	}
