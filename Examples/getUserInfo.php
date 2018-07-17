@@ -1,5 +1,6 @@
 <?php
 	$con = mysqli_connect("localhost","root",trim(file_get_contents("/var/www/password")),"CrunchyrollPremium");
+	var_dump($argv);
 	$groupID=+$argv[1];
 
 	$query="SELECT `CrunchyrollUsername`,`CrunchyrollPassword`,GroupPosition
@@ -15,7 +16,7 @@
 		";
 	$result=$con->query("$query");
 
-    if(!isset($argv[2]))
+    if(!isset($argv[2]) || ! is_numeric($argv[2]) )
         $argv[2]=0;
 	if($result->num_rows){
 	    
@@ -24,9 +25,10 @@
 		echo $row[0]." ".$row[1]." ".$row[2];
 	}
     else {
-        $query="SELECT `CrunchyrollUsername` FROM Users INNER JOIN Groups ON GroupID = Groups.ID WHERE Groups.ID = $groupID AND ActivatedGroupMemberPosition=GroupPosition"
+        $query="SELECT `CrunchyrollUsername` FROM Users INNER JOIN Groups ON GroupID = Groups.ID WHERE Groups.ID = $groupID AND ActivatedGroupMemberPosition=GroupPosition";
+        $result=$con->query("$query");
         if($result->num_rows)
     		echo "Account is already premium. Current user is: ".$result->fetch_array()[0];
-        exit(1);
+        exit(12);
     }
 ?>

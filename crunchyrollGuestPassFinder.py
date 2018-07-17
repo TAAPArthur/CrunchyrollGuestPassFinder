@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import time
@@ -16,6 +17,7 @@ from pathlib import Path
 from random import shuffle
 
 CONFIG_DIR=str(Path.home())+"/.config/taapcrunchyroll-bot/"
+CONFIG_DIR=""
 class Status(Enum):
     INIT=61
     LOGIN_FAILED=62
@@ -32,8 +34,10 @@ class CrunchyrollGuestPassFinder:
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    timeout = 20
+    timeout = 30
     invalidResponse = "Coupon code not found."
+    
+    headless = False
     
     KILL_TIME = 43200 # after x seconds the program will quit with exit code 64
     DELAY = 10 # the delay between refreshing the guest pass page
@@ -46,14 +50,17 @@ class CrunchyrollGuestPassFinder:
         firefox_profile.set_preference('permissions.default.image', 2)
         firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
         options = Options()
-        options.add_argument("--headless")
+        if self.isHeadless():
+            options.add_argument("--headless")
         self.driver = webdriver.Firefox(log_path="/dev/null", firefox_options=options,firefox_profile=firefox_profile)
         self.driver.implicitly_wait(self.timeout)
         self.startTime = time.time()
         self.username = username
         self.password = password
+        self.output("inital status",self.status)
         
-    
+    def isHeadless(self):
+        return self.headless
     def isTimeout(self):
         if time.time() - self.startTime >= self.KILL_TIME:
             return True
@@ -65,10 +72,11 @@ class CrunchyrollGuestPassFinder:
         self.driver.find_element_by_id("login_form_name").send_keys(self.username)
         self.driver.find_element_by_id("login_form_password").send_keys(self.password)
         self.driver.find_element_by_class_name("type-primary").click()
-        self.saveScreenshot("loggedIn.png~")
+
         self.output("logged in")
         self.output(self.driver.current_url)
         if self.driver.current_url==self.loginPage:
+            self.saveScreenshot("logged-in-failed.png")
             self.status=Status.LOGIN_FAILED
             return False
         
@@ -87,12 +95,16 @@ class CrunchyrollGuestPassFinder:
         try:
             self.waitForElementToLoadByClass("premium")
             return True
-        except:
+        except TimeoutException:
             self.output("Could not find indicator of non-premium account; exiting")
             if init:
                 self.status=Status.ACCOUNT_ALREADY_ACTIVATED
             self.saveScreenshot("alreadyPremium")
             return False
+        except:
+             traceback.print_exc(2)
+             return True
+            
     def startFreeAccess(self):
         count = -1
         usedCodes = []
@@ -106,6 +118,7 @@ class CrunchyrollGuestPassFinder:
             try:
                 guestCodes = self.findGuestPass()
             except TimeoutException:
+                self.output("Unexpected timtout when searching for guest codeds trying again?")
                 continue
             unusedGuestCodes = []
             for i in range(len(guestCodes)):
@@ -162,11 +175,11 @@ class CrunchyrollGuestPassFinder:
                     pass
 
             time.sleep(self.DELAY)
-            if not self.isAccountNonPremium():
-                self.saveScreenshot("~guest_pass_already_activated")
-                self.output("currentURL:",self.driver.current_url)
-                self.status=Status.ACCOUNT_ACTIVATED
-                return None
+            if(len(unusedGuestCodes)): #only check if we just attempted
+                if not self.isAccountNonPremium():
+                    self.output("currentURL:",self.driver.current_url)
+                    self.status=Status.ACCOUNT_ACTIVATED
+                    return None
 
 
     def postTakenGuestPass(self,guestPass):
@@ -220,6 +233,10 @@ class CrunchyrollGuestPassFinder:
 
     def getStatus(self):
         return self.status.value
+    def close(self):
+        self.output("exiting")
+        if self.isHeadless():
+            self.driver.quit()
 
 
 if __name__ == "__main__":
@@ -233,8 +250,12 @@ if __name__ == "__main__":
             if len(sys.argv) >= 5:
                 CrunchyrollGuestPassFinder.DELAY = int(sys.argv[4])
         username, password = sys.argv[1], sys.argv[2]
+        
+    if CONFIG_DIR and not os.path.exists(CONFIG_DIR):
+        os.makedirs(CONFIG_DIR)
     crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
     if crunchyrollGuestPassFinder.login():
         crunchyrollGuestPassFinder.startFreeAccess()
+    crunchyrollGuestPassFinder.close()
     print("status = %d" % crunchyrollGuestPassFinder.getStatus())
     exit(crunchyrollGuestPassFinder.getStatus())

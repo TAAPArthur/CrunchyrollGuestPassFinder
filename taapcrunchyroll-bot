@@ -79,7 +79,7 @@ for groupNumber in $(seq 1 $numberOfGroups);
                 activateAccount "$uname" "$password" && break
                 offset=$offset+1
             else
-                sendMessage $errCode $credentials
+                sendMessage "$errCode" "$credentials"
                 break
             fi
        done
