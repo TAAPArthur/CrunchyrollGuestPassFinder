@@ -3,6 +3,8 @@ import re
 import sys
 import time
 import datetime
+import getopt
+
 from selenium import webdriver
 
 from selenium.common.exceptions import TimeoutException
@@ -16,8 +18,7 @@ from enum import Enum
 from pathlib import Path
 from random import shuffle
 
-CONFIG_DIR=str(Path.home())+"/.config/taapcrunchyroll-bot/"
-CONFIG_DIR=""
+
 class Status(Enum):
     INIT=61
     LOGIN_FAILED=62
@@ -28,17 +29,19 @@ class Status(Enum):
     TIMEOUT=64
 
 class CrunchyrollGuestPassFinder:
+
     endOfGuestPassThreadPage = "http://www.crunchyroll.com/forumtopic-803801/the-official-guest-pass-thread-read-opening-post-first?pg=last"
     redeemGuestPassPage = "http://www.crunchyroll.com/coupon_redeem?code="
     failedGuestPassRedeemPage="http://www.crunchyroll.com/coupon_redeem"
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    timeout = 30
+    timeout = 20
     invalidResponse = "Coupon code not found."
-    
-    headless = False
-    
+
+    HEADLESS = True
+    CONFIG_DIR=str(Path.home())+"/.config/taapcrunchyroll-bot/"
+  
     KILL_TIME = 43200 # after x seconds the program will quit with exit code 64
     DELAY = 10 # the delay between refreshing the guest pass page
     
@@ -54,13 +57,14 @@ class CrunchyrollGuestPassFinder:
             options.add_argument("--headless")
         self.driver = webdriver.Firefox(log_path="/dev/null", firefox_options=options,firefox_profile=firefox_profile)
         self.driver.implicitly_wait(self.timeout)
+        self.driver.set_page_load_timeout(self.timeout)
         self.startTime = time.time()
         self.username = username
         self.password = password
         self.output("inital status",self.status)
         
     def isHeadless(self):
-        return self.headless
+        return self.HEADLESS
     def isTimeout(self):
         if time.time() - self.startTime >= self.KILL_TIME:
             return True
@@ -101,10 +105,35 @@ class CrunchyrollGuestPassFinder:
                 self.status=Status.ACCOUNT_ALREADY_ACTIVATED
             self.saveScreenshot("alreadyPremium")
             return False
-        except:
-             traceback.print_exc(2)
-             return True
             
+    def activeCode(self,code):
+        try:
+            self.driver.get(self.redeemGuestPassPage+code)
+
+            self.output("currentURL:",self.driver.current_url)
+            self.waitForElementToLoad("couponcode_redeem_form")
+            self.driver.find_element_by_id("couponcode_redeem_form").submit()
+            
+            self.output("URL after submit:",self.driver.current_url)
+            if not self.driver.current_url.startswith(self.failedGuestPassRedeemPage) and  self.driver.current_url.startswith(self.homePage):
+                #self.saveScreenshot("~guest_pass_activated_question")
+                self.waitForElementToLoad("message_box")
+                message=self.driver.find_element_by_id("message_box").text
+                self.output("Message:",message)
+
+                if self.invalidResponse not in message:
+                    self.saveScreenshot("~guest_pass_activated")
+                    if self.isAccountNonPremium():
+                        self.output("False positive. account is still non premium")
+                    else:                        
+                        self.postTakenGuestPass(code)
+                        self.output("found guest pass %s; exiting" % str(code))
+                        self.status=Status.ACCOUNT_ACTIVATED
+                        return code
+            self.output(self.driver.current_url)
+        except TimeoutException:
+            traceback.print_exc(2)
+            pass
     def startFreeAccess(self):
         count = -1
         usedCodes = []
@@ -117,69 +146,35 @@ class CrunchyrollGuestPassFinder:
             count += 1
             try:
                 guestCodes = self.findGuestPass()
-            except TimeoutException:
-                self.output("Unexpected timtout when searching for guest codeds trying again?")
-                continue
-            unusedGuestCodes = []
-            for i in range(len(guestCodes)):
-                if guestCodes[i] not in usedCodes:
-                    unusedGuestCodes.append(guestCodes[i])
-            if len(unusedGuestCodes) > 0:
-                self.output("Trial ",count,": found ",len(unusedGuestCodes)," codes: ",unusedGuestCodes,"; ", len(usedCodes), " others have been used: ",usedCodes)
-                timeOfLastCheck = time.time()
-                shuffle(unusedGuestCodes)
-            elif time.time()-timeOfLastCheck > 600:
-                self.output("Trial ",count, "url",self.driver.current_url)
-                sys.stdout.flush()
-                
-                timeOfLastCheck = time.time()
-            if self.isTimeout():
-                self.status=Status.TIMEOUT
-                return None
-            for i in range(len(unusedGuestCodes)):
-                try:
-                    self.driver.get(self.redeemGuestPassPage+unusedGuestCodes[i])
 
-                    self.output("currentURL:",self.driver.current_url)
-                    self.waitForElementToLoad("couponcode_redeem_form")
-                    self.driver.find_element_by_id("couponcode_redeem_form").submit()
-                    
-                    self.output("URL after submit:",self.driver.current_url)
-                    if not self.driver.current_url.startswith(self.failedGuestPassRedeemPage) and  self.driver.current_url.startswith(self.homePage):
-                        #self.saveScreenshot("~guest_pass_activated_question")
-                        self.waitForElementToLoad("message_box")
-                        message=self.driver.find_element_by_id("message_box").text
-                        self.output("Message:",message)
+                unusedGuestCodes = [x for x in guestCodes if x not in usedCodes]
 
-                        if self.invalidResponse not in message:
-                            self.saveScreenshot("~guest_pass_activated")
-                            if self.isAccountNonPremium():
-                                self.output("False positive. account is still non premium")
-                                continue
-                            else:                        
-                                self.postTakenGuestPass(unusedGuestCodes[i])
-                                self.output("found guest pass %s; exiting" % str(unusedGuestCodes[i]))
-                                self.status=Status.ACCOUNT_ACTIVATED
-                                return unusedGuestCodes[i]
-                        else:
-                            usedCodes.append(unusedGuestCodes[i])
-                    else:
-                        usedCodes.append(unusedGuestCodes[i])
-                    self.output(self.driver.current_url)
-                except TimeoutException:
-                    usedCodes.append(unusedGuestCodes[i])
-                    self.output("timeout occured with ", unusedGuestCodes[i])
-                except:
-                    self.output("error:",  sys.exc_info()[0])
-                    traceback.print_exc()
-                    pass
-
-            time.sleep(self.DELAY)
-            if(len(unusedGuestCodes)): #only check if we just attempted
-                if not self.isAccountNonPremium():
-                    self.output("currentURL:",self.driver.current_url)
-                    self.status=Status.ACCOUNT_ACTIVATED
+                if len(unusedGuestCodes) > 0:
+                    self.output("Trial ",count,": found ",len(unusedGuestCodes)," codes: ",unusedGuestCodes,"; ", len(usedCodes), " others have been used: ",usedCodes)
+                    timeOfLastCheck = time.time()
+                    shuffle(unusedGuestCodes)
+                elif time.time()-timeOfLastCheck > 600:
+                    self.output("Trial ",count, "url",self.driver.current_url)
+                    sys.stdout.flush()
+                    timeOfLastCheck = time.time()
+                if self.isTimeout():
+                    self.status=Status.TIMEOUT
                     return None
+                for code in unusedGuestCodes:
+                    if self.activeCode(code):
+                        break
+                    usedCodes.append(code)
+
+                time.sleep(self.DELAY)
+                if(len(unusedGuestCodes)): #only check if we just attempted
+                    if not self.isAccountNonPremium():
+                        self.output("currentURL:", self.driver.current_url)
+                        self.status=Status.ACCOUNT_ACTIVATED
+                        return None
+            except TimeoutException:
+                pass
+            except BrokenPipeError:
+                traceback.print_exc(2)
 
 
     def postTakenGuestPass(self,guestPass):
@@ -189,29 +184,28 @@ class CrunchyrollGuestPassFinder:
             self.driver.find_element_by_id("newforumpost").send_keys(guestPass+" has been taken.\nThanks")
             self.saveScreenshot("posted_guest_pass")
             self.driver.find_element_by_name("post_btn").click()
-
-        except:
+        except TimeoutException:
             self.output("failed to post guest pass");
                 
     def findGuestPass(self):
-        self.driver.get(self.endOfGuestPassThreadPage)
-
-        classes=self.driver.find_elements_by_class_name("showforumtopic-message-contents-text")
         guestCodes=[]
         inValidGuestCodes=[]
+        try:
+            self.driver.get(self.endOfGuestPassThreadPage)
+            classes=self.driver.find_elements_by_class_name("showforumtopic-message-contents-text")
+            for i in range(len(classes)):
 
-        for i in range(len(classes)):
+                matches = re.findall(self.GUEST_PASS_PATTERN,classes[i].text,re.M)
 
-            matches = re.findall(self.GUEST_PASS_PATTERN,classes[i].text,re.M)
-
-            if matches:
-                for n in range(len(matches)):
-                    if matches[n] not in guestCodes:
-        
-                        guestCodes.append(matches[n])
-                    elif matches[n] not in inValidGuestCodes:
-                        inValidGuestCodes.append(matches[n])
-
+                if matches:
+                    for n in range(len(matches)):
+                        if matches[n] not in guestCodes:
+            
+                            guestCodes.append(matches[n])
+                        elif matches[n] not in inValidGuestCodes:
+                            inValidGuestCodes.append(matches[n])
+        except TimeoutException:
+            traceback.print_exc(2)
         for i in range(len(inValidGuestCodes)):
             guestCodes.remove(inValidGuestCodes[i])
 
@@ -220,7 +214,7 @@ class CrunchyrollGuestPassFinder:
     def saveScreenshot(self,fileName="screenshot.png"):
         fileName+=".png"
         self.output("saving screen shot to ",fileName)
-        self.driver.save_screenshot(CONFIG_DIR+fileName)
+        self.driver.save_screenshot(self.CONFIG_DIR+fileName)
         pass
 
     def output(self,*message):
@@ -241,18 +235,30 @@ class CrunchyrollGuestPassFinder:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 3:
-        username = input("Username:")
-        password = input("Password:")
+    shortargs="gk:d:"
+    longargs=["graphical","kill-time=","config-dir=","delay="]
+    optlist, args = getopt.getopt(sys.argv[1:],shortargs,longargs)
+    for opt,value in optlist:
+        if opt == "-g" or opt == "--graphical":
+            CrunchyrollGuestPassFinder.HEADLESS = False
+        elif opt == "-k" or opt == "--kill-time=":
+            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
+        elif opt == "-d" or opt == "-delay=":
+            CrunchyrollGuestPassFinder.DELAY = int(value)
+        elif opt == "--config-dir=":
+            CrunchyrollGuestPassFinder.CONFIG_DIR = value
+            
+        else:
+            raise ValueError("Unkown argument: ",opt)
+
+    if len(args) <= 2:
+        username = input("Username:") if len(args) == 0 else args[0]
+        password = input("Password:") if len(args) <= 1 else args[1]
     else:
-        if len(sys.argv) >= 4:
-            CrunchyrollGuestPassFinder.KILL_TIME = int(sys.argv[3])
-            if len(sys.argv) >= 5:
-                CrunchyrollGuestPassFinder.DELAY = int(sys.argv[4])
-        username, password = sys.argv[1], sys.argv[2]
+        raise ValueError("Too many arguments")
         
-    if CONFIG_DIR and not os.path.exists(CONFIG_DIR):
-        os.makedirs(CONFIG_DIR)
+    if not os.path.exists(CrunchyrollGuestPassFinder.CONFIG_DIR):
+        print("WARNING the dir specified does not exists:",CrunchyrollGuestPassFinder.CONFIG_DIR)
     crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
     if crunchyrollGuestPassFinder.login():
         crunchyrollGuestPassFinder.startFreeAccess()

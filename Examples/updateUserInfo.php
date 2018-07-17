@@ -5,11 +5,10 @@
 	$groupID=+$argv[2];
     
 	if($success==0){
-        $activatedGroupMember=+$argv[3];	
-		echo "premiumAccountToUseNext $premiumAccountToUseNext";
+        $activatedGroupMember=+$argv[3];
 		$con->query("UPDATE Groups SET PremiumStartDate=NOW(), ActivatedGroupMemberPosition=$activatedGroupMember 
 		WHERE ID=$groupID");
-		shell_exec("taapbot \"$argv[2] is now active\"");
+		shell_exec("taapmessage \"$argv[2] is now active\"");
 	}
 	else{
 	    if($success>0)
