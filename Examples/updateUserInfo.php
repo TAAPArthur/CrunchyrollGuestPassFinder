@@ -8,7 +8,7 @@
         $activatedGroupMember=+$argv[3];
 		$con->query("UPDATE Groups SET PremiumStartDate=NOW(), ActivatedGroupMemberPosition=$activatedGroupMember 
 		WHERE ID=$groupID");
-		shell_exec("taapmessage \"$argv[2] is now active\"");
+		shell_exec("taapmessage \"Group $argv[2] is now active. $argv[4]\"");
 	}
 	else{
 	    if($success>0)

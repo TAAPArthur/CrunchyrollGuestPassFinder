@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import re
 import sys
@@ -36,7 +37,7 @@ class CrunchyrollGuestPassFinder:
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    timeout = 20
+    timeout = 10
     invalidResponse = "Coupon code not found."
 
     HEADLESS = True
@@ -114,26 +115,19 @@ class CrunchyrollGuestPassFinder:
             self.waitForElementToLoad("couponcode_redeem_form")
             self.driver.find_element_by_id("couponcode_redeem_form").submit()
             
-            self.output("URL after submit:",self.driver.current_url)
-            if not self.driver.current_url.startswith(self.failedGuestPassRedeemPage) and  self.driver.current_url.startswith(self.homePage):
-                #self.saveScreenshot("~guest_pass_activated_question")
-                self.waitForElementToLoad("message_box")
-                message=self.driver.find_element_by_id("message_box").text
-                self.output("Message:",message)
 
-                if self.invalidResponse not in message:
-                    self.saveScreenshot("~guest_pass_activated")
-                    if self.isAccountNonPremium():
-                        self.output("False positive. account is still non premium")
-                    else:                        
-                        self.postTakenGuestPass(code)
-                        self.output("found guest pass %s; exiting" % str(code))
-                        self.status=Status.ACCOUNT_ACTIVATED
-                        return code
-            self.output(self.driver.current_url)
+            if self.isAccountNonPremium():
+                self.output("False positive. account is still non premium")
+            else:                        
+                self.postTakenGuestPass(code)
+                self.output("found guest pass %s; exiting" % str(code))
+                self.status=Status.ACCOUNT_ACTIVATED
+                return code
+            self.output("URL after submit:",self.driver.current_url)
         except TimeoutException:
             traceback.print_exc(2)
             pass
+        return None
     def startFreeAccess(self):
         count = -1
         usedCodes = []
@@ -160,9 +154,10 @@ class CrunchyrollGuestPassFinder:
                 if self.isTimeout():
                     self.status=Status.TIMEOUT
                     return None
+                    
                 for code in unusedGuestCodes:
                     if self.activeCode(code):
-                        break
+                        return code
                     usedCodes.append(code)
 
                 time.sleep(self.DELAY)
@@ -241,16 +236,16 @@ if __name__ == "__main__":
     for opt,value in optlist:
         if opt == "-g" or opt == "--graphical":
             CrunchyrollGuestPassFinder.HEADLESS = False
-        elif opt == "-k" or opt == "--kill-time=":
+        elif opt == "-k" or opt == "--kill-time":
             CrunchyrollGuestPassFinder.KILL_TIME = int(value)
-        elif opt == "-d" or opt == "-delay=":
+        elif opt == "-d" or opt == "-delay":
             CrunchyrollGuestPassFinder.DELAY = int(value)
         elif opt == "--config-dir=":
             CrunchyrollGuestPassFinder.CONFIG_DIR = value
             
         else:
             raise ValueError("Unkown argument: ",opt)
-
+            
     if len(args) <= 2:
         username = input("Username:") if len(args) == 0 else args[0]
         password = input("Password:") if len(args) <= 1 else args[1]

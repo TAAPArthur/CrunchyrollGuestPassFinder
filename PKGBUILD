@@ -2,9 +2,9 @@
 
 
 pkgname='taapcrunchyroll-bot'
-pkgver='1.1.5'
+pkgver='1.1.4'
 _language='en-US'
-pkgrel=9
+pkgrel=0
 pkgdesc='Automatically get Crunchyroll guest passes for free'
 
 arch=('any')

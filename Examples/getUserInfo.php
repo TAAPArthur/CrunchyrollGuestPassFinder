@@ -1,8 +1,6 @@
 <?php
 	$con = mysqli_connect("localhost","root",trim(file_get_contents("/var/www/password")),"CrunchyrollPremium");
-	var_dump($argv);
 	$groupID=+$argv[1];
-
 	$query="SELECT `CrunchyrollUsername`,`CrunchyrollPassword`,GroupPosition
 		From Users
 		INNER JOIN (
