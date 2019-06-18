@@ -1,29 +1,22 @@
 # Maintainer: Arthur Williams <taaparthur@gmail.com>
 
 
-pkgname='taapcrunchyroll-bot'
-pkgver='1.1.4'
+pkgname='crunchyroll-guest-pass-finder'
+pkgver='2.0.0'
 _language='en-US'
-pkgrel=0
+pkgrel=1
 pkgdesc='Automatically get Crunchyroll guest passes for free'
 
 arch=('any')
 license=('MIT')
-depends=('python3' 'python-selenium' 'geckodriver' 'firefox')
+depends=('python3' 'python-selenium' 'geckodriver')
+optdepends=('firefox')
 md5sums=('SKIP')
 
-source=("git://github.com/TAAPArthur/TAAPCrunchyrollBot.git")
-_srcDir="TAAPCrunchyrollBot"
+source=("git+https://github.com/TAAPArthur/CrunchyrollGuestPassFinder.git")
+_srcDir="CrunchyrollGuestPassFinder"
 
 package() {
-
   cd "$_srcDir"
-  mkdir -p "$pkgdir/usr/bin/"
-  mkdir -p "$pkgdir/usr/lib/$pkgname/"
-  mkdir -p "$pkgdir/usr/lib/$pkgname/Examples"
-  install -D -m 0755 "taapcrunchyroll-bot" "$pkgdir/usr/bin/"
-  install -D -m 0755 "taapmessage" "$pkgdir/usr/bin/"
-  install -D -m 0755 *.py "$pkgdir/usr/lib/$pkgname/"
-  install -D -m 0755 Examples/* "$pkgdir/usr/lib/$pkgname/Examples"
-  install -D -m 0755 taapcrunchyroll-config "$pkgdir/usr/lib/$pkgname/"
+  install -D -m 0755 "crunchyroll-guest-pass-finder.py" "$pkgdir/usr/bin/crunchyroll-guest-pass-finder"
 }
