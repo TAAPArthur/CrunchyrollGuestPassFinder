@@ -41,7 +41,7 @@ class CrunchyrollGuestPassFinder:
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    timeout = 60
+    timeout = 10
     invalidResponse = "Coupon code not found."
 
     HEADLESS = True
@@ -116,7 +116,7 @@ class CrunchyrollGuestPassFinder:
             self.saveScreenshot("alreadyPremium")
             return False
 
-    def activeCode(self, code):
+    def activateCode(self, code):
         try:
             self.driver.get(self.redeemGuestPassPage + code)
 
@@ -124,9 +124,7 @@ class CrunchyrollGuestPassFinder:
             self.waitForElementToLoad("couponcode_redeem_form")
             self.driver.find_element_by_id("couponcode_redeem_form").submit()
 
-            if self.isAccountNonPremium():
-                self.output("False positive. account is still non premium")
-            else:
+            if not self.isAccountNonPremium():
                 self.postTakenGuestPass(code)
                 self.output("found guest pass %s; exiting" % str(code))
                 self.status = Status.ACCOUNT_ACTIVATED
@@ -157,7 +155,7 @@ class CrunchyrollGuestPassFinder:
                     timeOfLastCheck = time.time()
                     shuffle(unusedGuestCodes)
                 elif time.time() - timeOfLastCheck > 600:
-                    self.output("Trial ", count, "url", self.driver.current_url)
+                    self.output("Trial ", count)
                     sys.stdout.flush()
                     timeOfLastCheck = time.time()
                 if self.isTimeout():
@@ -165,16 +163,16 @@ class CrunchyrollGuestPassFinder:
                     return None
 
                 for code in unusedGuestCodes:
-                    if self.activeCode(code):
+                    if self.activateCode(code):
                         return code
                     usedCodes.append(code)
 
-                time.sleep(self.DELAY)
                 if(len(unusedGuestCodes)):  # only check if we just attempted
                     if not self.isAccountNonPremium():
                         self.output("currentURL:", self.driver.current_url)
                         self.status = Status.ACCOUNT_ACTIVATED
                         return None
+                time.sleep(self.DELAY)
             except TimeoutException:
                 pass
             except BrokenPipeError:
@@ -293,11 +291,15 @@ if __name__ == "__main__":
             except json.decoder.JSONDecodeError:
                 state = False
             index = 0
-            if state and (not state["EndDate"] or datetime.strptime(state["EndDate"], DATE_FORMAT) <= datetime.now()):
-                for i, userData in enumerate(accounts):
-                    if userData["Username"] == state["ActiveUser"]:
-                        index = (i + 1) % LEN(accounts)
-                        break
+            if state:
+                if (state["EndDate"] and datetime.strptime(state["EndDate"], DATE_FORMAT) < datetime.now()):
+                    print("Previously activated account is probably still activated; aborting")
+                    exit(0)
+                else:
+                    for i, userData in enumerate(accounts):
+                        if userData["Username"] == state["ActiveUser"]:
+                            index = (i + 1) % LEN(accounts)
+                            break
             username = accounts[index]["Username"]
             password = accounts[index]["Password"]
             duration = accounts[index].get("Duration", 4)
@@ -330,7 +332,15 @@ if __name__ == "__main__":
     if not username:
         username = input("Username:")
     if not password:
-        password = input("Password:")
+        try:
+            with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
+                row = next(filter(lambda x: x.get("Username", 0) == username, json.load(jsonFile)), None)
+                if row:
+                    password = row["Password"]
+        except (json.decoder.JSONDecodeError, FileNotFoundError):
+            pass
+        if not password:
+            password = input("Password:")
 
     if not path.exists(CONFIG_DIR):
         print("WARNING the dir specified does not exists:", CONFIG_DIR)
@@ -340,7 +350,7 @@ if __name__ == "__main__":
         crunchyrollGuestPassFinder.startFreeAccess()
     crunchyrollGuestPassFinder.close()
     print("status = %d" % crunchyrollGuestPassFinder.getStatus())
-    if not DRY_RUN and crunchyrollGuestPassFinder.getStatus() == Status.ACCOUNT_ACTIVATED and save:
+    if not DRY_RUN and (not state or crunchyrollGuestPassFinder.getStatus() == Status.ACCOUNT_ACTIVATED) and save:
         state = {}
         state["ActiveUser"] = username
         state["StartDate"] = datetime.now().strftime(DATE_FORMAT)

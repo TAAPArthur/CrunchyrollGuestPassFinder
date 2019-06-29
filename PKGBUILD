@@ -2,9 +2,9 @@
 
 
 pkgname='crunchyroll-guest-pass-finder'
-pkgver='2.0.0'
+pkgver='2.0.1'
 _language='en-US'
-pkgrel=4
+pkgrel=0
 pkgdesc='Automatically get Crunchyroll guest passes for free'
 
 arch=('any')
@@ -20,5 +20,6 @@ package() {
   cd "$_srcDir"
   install -D -m 0755 "crunchyroll-guest-pass-finder.py" "$pkgdir/usr/bin/crunchyroll-guest-pass-finder"
   install -m 0744 -Dt "$pkgdir/usr/share/man/man1/" crunchyroll-guest-pass-finder.1
+  install -D -m 0755 "crunchyroll-guest-pass-finder-autocomplete.sh" "$pkgdir/etc/bash_completion.d/crunchyroll-guest-pass-finder-autocomplete"
 
 }
