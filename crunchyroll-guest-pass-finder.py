@@ -214,9 +214,9 @@ class CrunchyrollGuestPassFinder:
         return guestCodes
 
     def saveScreenshot(self, fileName="screenshot.png"):
-        fileName += ".png"
-        self.output("saving screen shot to ", fileName)
-        self.driver.save_screenshot(CONFIG_DIR + fileName)
+        #fileName += ".png"
+        #self.output("saving screen shot to ", fileName)
+        #self.driver.save_screenshot(CONFIG_DIR + fileName)
         pass
 
     def output(self, *message):
@@ -241,14 +241,43 @@ def safeOpen(fileName):
     return open(fileName, mode)
 
 
+def printHelp():
+    print(
+        """
+Usage: crunchyroll-guest-pass-finder [arg]
+Fishes for Crunchyroll guest passes
+
+If username/password is not specified, the user will be prompted to enter them
+
+Args:
+    --auto, -a                  Load the username/password from accounts.json in CONFIG_DIR
+    --config-dir                The location on the config files
+    --delay, -d                 How often to rescan the guest pass page
+    --driver                    Specifies the name of the driver to use (Firefox (default) or PhantomJS)
+    --dry-run                   Login but don't do anything
+    --graphical, -g             Runs in a non-headless manner. Useless if the driver is PhantomJS
+    --help, -h                  Prints this help message
+    --killtime, -k              How much time in seconds until the programs kills itself
+    --password, -p              Specifies the password to use
+    --username, -u              Specifies the username to use
+    --version, -v               Prints the version
+
+"""
+    )
+
+
+def printVersion():
+    print(2.0)
+
+
 if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
     DRY_RUN = 0
     save = False
     username = password = False
     duration = 1
-    shortargs = "agkmp:u:d:"
-    longargs = ["graphical", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password="]
+    shortargs = "aghvk:mp:u:d:"
+    longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password="]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
         if opt == "-a" or opt == "--auto":
@@ -286,9 +315,16 @@ if __name__ == "__main__":
             CrunchyrollGuestPassFinder.DELAY = int(value)
         elif opt == "--config-dir":
             CONFIG_DIR = value
-        elif opt == "dry-run":
+        elif opt == "--dry-run":
             DRY_RUN = 1
+        elif opt == "-v" or opt == "--version":
+            printVersion()
+            exit(0)
+        elif opt == "-h" or opt == "--help":
+            printHelp()
+            exit(0)
         else:
+            printHelp()
             raise ValueError("Unknown argument: ", opt)
 
     if not username:
