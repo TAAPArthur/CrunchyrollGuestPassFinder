@@ -41,10 +41,11 @@ class CrunchyrollGuestPassFinder:
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    timeout = 10
+    timeout = 60
     invalidResponse = "Coupon code not found."
 
     HEADLESS = True
+    DRIVER = False
 
     KILL_TIME = 36000  # after x seconds the program will quit with exit code 64
     DELAY = 10  # the delay between refreshing the guest pass page
@@ -53,13 +54,16 @@ class CrunchyrollGuestPassFinder:
 
     def __init__(self, username, password):
         self.output("starting bot")
-        firefox_profile = webdriver.FirefoxProfile()
-        firefox_profile.set_preference('permissions.default.image', 2)
-        firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
         options = Options()
         if self.isHeadless():
             options.add_argument("--headless")
-        self.driver = webdriver.Firefox(service_log_path="/dev/null", options=options, firefox_profile=firefox_profile)
+        if not self.DRIVER:
+            firefox_profile = webdriver.FirefoxProfile()
+            firefox_profile.set_preference('permissions.default.image', 2)
+            firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
+            self.driver = webdriver.Firefox(service_log_path="/dev/null", options=options, firefox_profile=firefox_profile)
+        else:
+            self.driver = getattr(webdriver, self.DRIVER)(service_log_path="/dev/null", options=options)
         self.driver.implicitly_wait(self.timeout)
         self.driver.set_page_load_timeout(self.timeout)
         self.startTime = time.time()
@@ -243,8 +247,8 @@ if __name__ == "__main__":
     save = False
     username = password = False
     duration = 1
-    shortargs = "agkmpu:d:"
-    longargs = ["graphical", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "username", "password"]
+    shortargs = "agkmp:u:d:"
+    longargs = ["graphical", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password="]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
         if opt == "-a" or opt == "--auto":
@@ -272,6 +276,8 @@ if __name__ == "__main__":
             password = value
         elif opt == "-u" or opt == "--username":
             username = value
+        elif opt == "--driver":
+            CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "-g" or opt == "--graphical":
             CrunchyrollGuestPassFinder.HEADLESS = False
         elif opt == "-k" or opt == "--kill-time":

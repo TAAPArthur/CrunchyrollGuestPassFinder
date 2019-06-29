@@ -9,8 +9,8 @@ pkgdesc='Automatically get Crunchyroll guest passes for free'
 
 arch=('any')
 license=('MIT')
-depends=('python3' 'python-selenium' 'geckodriver')
-optdepends=('firefox')
+depends=('python3' 'python-selenium' )
+optdepends=('firefox' 'geckodriver' 'phantomjs' )
 md5sums=('SKIP')
 
 source=("git+https://github.com/TAAPArthur/CrunchyrollGuestPassFinder.git")
