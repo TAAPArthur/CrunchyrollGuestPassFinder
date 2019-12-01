@@ -271,7 +271,6 @@ def printVersion():
 if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
     DRY_RUN = 0
-    save = False
     username = password = False
     duration = 1
     shortargs = "aghvk:mp:u:d:"
@@ -285,21 +284,6 @@ if __name__ == "__main__":
             except (json.decoder.JSONDecodeError, FileNotFoundError):
                 print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
                 exit(2)
-            try:
-                with safeOpen(path.join(CONFIG_DIR, "state.json")) as jsonFile:
-                    state = json.load(jsonFile)
-            except json.decoder.JSONDecodeError:
-                state = False
-            index = 0
-            if state:
-                if (state["EndDate"] and datetime.strptime(state["EndDate"], DATE_FORMAT) < datetime.now()):
-                    print("Previously activated account is probably still activated; aborting")
-                    exit(0)
-                else:
-                    for i, userData in enumerate(accounts):
-                        if userData["Username"] == state["ActiveUser"]:
-                            index = (i + 1) % LEN(accounts)
-                            break
             username = accounts[index]["Username"]
             password = accounts[index]["Password"]
             duration = accounts[index].get("Duration", 4)
@@ -350,12 +334,5 @@ if __name__ == "__main__":
         crunchyrollGuestPassFinder.startFreeAccess()
     crunchyrollGuestPassFinder.close()
     print("status = %d" % crunchyrollGuestPassFinder.getStatus())
-    if not DRY_RUN and (not state or crunchyrollGuestPassFinder.getStatus() == Status.ACCOUNT_ACTIVATED) and save:
-        state = {}
-        state["ActiveUser"] = username
-        state["StartDate"] = datetime.now().strftime(DATE_FORMAT)
-        state["EndDate"] = (datetime.now() + timedelta(days=duration)).strftime(DATE_FORMAT)
-        with open(path.join(CONFIG_DIR, "state.json"), 'w') as outfile:
-            json.dump(state, outfile)
 
     exit(crunchyrollGuestPassFinder.getStatus())
