@@ -140,9 +140,9 @@ class CrunchyrollGuestPassFinder:
         usedCodes = []
         timeOfLastCheck = 0
         self.status = Status.SEARCHING
-        self.output("searching for guest passes")
         if not self.isAccountNonPremium(True):
             return None
+        self.output("searching for guest passes")
         while True:
             count += 1
             try:
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
     DRY_RUN = 0
     username = password = False
-    duration = 1
+    accountInfo = []
     shortargs = "aghvk:mp:u:d:"
     longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password="]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
@@ -284,9 +284,7 @@ if __name__ == "__main__":
             except (json.decoder.JSONDecodeError, FileNotFoundError):
                 print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
                 exit(2)
-            username = accounts[index]["Username"]
-            password = accounts[index]["Password"]
-            duration = accounts[index].get("Duration", 4)
+            accountInfo += [(account["Username"], account["Password"]) for account in accounts]
         elif opt == "-p" or opt == "--password":
             password = value
         elif opt == "-u" or opt == "--username":
@@ -313,26 +311,30 @@ if __name__ == "__main__":
             printHelp()
             raise ValueError("Unknown argument: ", opt)
 
-    if not username:
-        username = input("Username:")
-    if not password:
-        try:
-            with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
-                row = next(filter(lambda x: x.get("Username", 0) == username, json.load(jsonFile)), None)
-                if row:
-                    password = row["Password"]
-        except (json.decoder.JSONDecodeError, FileNotFoundError):
-            pass
+    if not accountInfo:
+        if not username:
+            username = input("Username:")
         if not password:
-            password = input("Password:")
+            try:
+                with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
+                    row = next(filter(lambda x: x.get("Username", 0) == username, json.load(jsonFile)), None)
+                    if row:
+                        password = row["Password"]
+            except (json.decoder.JSONDecodeError, FileNotFoundError):
+                pass
+            if not password:
+                password = input("Password:")
+        accountInfo.append(username, password)
 
     if not path.exists(CONFIG_DIR):
         print("WARNING the dir specified does not exists:", CONFIG_DIR)
         mkdir(CONFIG_DIR)
-    crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
-    if crunchyrollGuestPassFinder.login() and not DRY_RUN:
-        crunchyrollGuestPassFinder.startFreeAccess()
-    crunchyrollGuestPassFinder.close()
-    print("status = %d" % crunchyrollGuestPassFinder.getStatus())
+
+    for username, password in accountInfo:
+        crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
+        if crunchyrollGuestPassFinder.login() and not DRY_RUN:
+            crunchyrollGuestPassFinder.startFreeAccess()
+        crunchyrollGuestPassFinder.close()
+        print("status = %d" % crunchyrollGuestPassFinder.getStatus())
 
     exit(crunchyrollGuestPassFinder.getStatus())
