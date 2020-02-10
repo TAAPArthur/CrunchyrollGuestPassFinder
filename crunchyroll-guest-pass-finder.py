@@ -265,27 +265,42 @@ def printVersion():
     print(2.1)
 
 
+def loadAccountInfo():
+    accountInfo = {}
+    try:
+        with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
+            accounts = json.load(jsonFile)
+    except (json.decoder.JSONDecodeError, FileNotFoundError):
+        print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
+        exit(2)
+    if isinstance(accounts, list):
+        accountInfo = {account["Username"]: account["Password"] for account in accounts}
+    else:
+        accountInfo = accounts
+    return accountInfo
+
+
 if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
     DRY_RUN = 0
+    SAVE = False
+    ALL = False
     username = password = False
-    accountInfo = []
-    shortargs = "aghvk:mp:u:d:t:"
-    longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password=", "timeout="]
+    accountInfo = None
+    shortargs = "aghsvk:mp:u:d:t:"
+    longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password=", "timeout=", "save"]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
         if opt == "-a" or opt == "--auto":
-            try:
-                with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
-                    accounts = list(filter(lambda x: x.get("Active", 1), json.load(jsonFile)))
-            except (json.decoder.JSONDecodeError, FileNotFoundError):
-                print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
-                exit(2)
-            accountInfo += [(account["Username"], account["Password"]) for account in accounts]
+            ALL = True
+            accountInfo = loadAccountInfo()
         elif opt == "-p" or opt == "--password":
             password = value
         elif opt == "-u" or opt == "--username":
             username = value
+        elif opt == "-s" or opt == "--save":
+            accountInfo = loadAccountInfo()
+            SAVE = True
         elif opt == "--driver":
             CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "-g" or opt == "--graphical":
@@ -311,26 +326,27 @@ if __name__ == "__main__":
             printHelp()
             raise ValueError("Unknown argument: ", opt)
 
-    if not accountInfo:
+    if not ALL:
         if not username:
             username = input("Username:")
         if not password:
-            try:
-                with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
-                    row = next(filter(lambda x: x.get("Username", 0) == username, json.load(jsonFile)), None)
-                    if row:
-                        password = row["Password"]
-            except (json.decoder.JSONDecodeError, FileNotFoundError):
-                pass
+            if not accountInfo:
+                accountInfo = loadAccountInfo()
+            password = accountInfo[username]
             if not password:
                 password = input("Password:")
-        accountInfo.append(username, password)
+        accountInfo[username] = password
 
     if not path.exists(CONFIG_DIR):
         print("WARNING the dir specified does not exists:", CONFIG_DIR)
         mkdir(CONFIG_DIR)
 
-    for username, password in accountInfo:
+    if SAVE:
+        with open(path.join(CONFIG_DIR, "accounts.json"), 'w', encoding='utf-8') as f:
+            json.dump({x[0]: x[1] for x in accountInfo}, f, indent=4)
+        exit(0)
+
+    for username, password in accountInfo.items():
         crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
         if crunchyrollGuestPassFinder.login() and not DRY_RUN:
             crunchyrollGuestPassFinder.startFreeAccess()
