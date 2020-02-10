@@ -31,7 +31,6 @@ class CrunchyrollGuestPassFinder:
     loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
-    invalidResponse = "Coupon code not found."
 
     HEADLESS = True
     DRIVER = False
@@ -239,72 +238,98 @@ def printVersion():
     print(2.1)
 
 
+def getAccountPath():
+    return path.join(CONFIG_DIR, "accounts.json")
+
+
+def loadAccountInfo():
+    accountInfo = {}
+    try:
+        with safeOpen(getAccountPath()) as jsonFile:
+            accounts = json.load(jsonFile)
+    except (json.decoder.JSONDecodeError, FileNotFoundError):
+        print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
+        exit(2)
+    if isinstance(accounts, list):
+        accountInfo = {account["Username"]: account["Password"] for account in accounts}
+    else:
+        accountInfo = accounts
+    return accountInfo
+
+
 if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
     DRY_RUN = 0
+    SAVE = False
+    ALL = False
     username = password = False
-    accountInfo = []
-    shortargs = "aghvk:mp:u:d:t:"
-    longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password=", "timeout="]
+    accountInfo = None
+    shortargs = "aghsvk:mp:u:d:t:"
+    longargs = ["account-file", "auto", "config-dir=", "delay=", "driver=", "dry-run", "graphical", "help", "kill-time=", "password=", "save", "timeout=", "username=", "users", "version"]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
-        if opt == "-a" or opt == "--auto":
-            try:
-                with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
-                    accounts = list(filter(lambda x: x.get("Active", 1), json.load(jsonFile)))
-            except (json.decoder.JSONDecodeError, FileNotFoundError):
-                print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
-                exit(2)
-            accountInfo += [(account["Username"], account["Password"]) for account in accounts]
-        elif opt == "-p" or opt == "--password":
-            password = value
-        elif opt == "-u" or opt == "--username":
-            username = value
-        elif opt == "--driver":
-            CrunchyrollGuestPassFinder.DRIVER = value
-        elif opt == "-g" or opt == "--graphical":
-            CrunchyrollGuestPassFinder.HEADLESS = False
-        elif opt == "-k" or opt == "--kill-time":
-            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
-
-        elif opt == "-t" or opt == "--timeout":
-            CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
-        elif opt == "-d" or opt == "--delay":
-            CrunchyrollGuestPassFinder.DELAY = int(value)
+        if opt == "--account-file":
+            print(getAccountPath())
+            exit(0)
+        if opt == "--auto" or opt == "-a":
+            ALL = True
+            accountInfo = loadAccountInfo()
         elif opt == "--config-dir":
             CONFIG_DIR = value
+        elif opt == "--delay" or opt == "-d":
+            CrunchyrollGuestPassFinder.DELAY = int(value)
+        elif opt == "--driver":
+            CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "--dry-run":
             DRY_RUN = 1
-        elif opt == "-v" or opt == "--version":
-            printVersion()
-            exit(0)
-        elif opt == "-h" or opt == "--help":
+        elif opt == "--graphical" or opt == "-g":
+            CrunchyrollGuestPassFinder.HEADLESS = False
+        elif opt == "--help" or opt == "-h":
             printHelp()
+            exit(0)
+        elif opt == "--kill-time" or opt == "-k":
+            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
+        elif opt == "--password" or opt == "-p":
+            password = value
+        elif opt == "--save" or opt == "-s":
+            accountInfo = loadAccountInfo()
+            SAVE = True
+        elif opt == "--timeout" or opt == "-t":
+            CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
+        elif opt == "--username" or opt == "-u":
+            username = value
+        elif opt == "--users" or opt == "-u":
+            accountInfo = loadAccountInfo()
+            print(accountInfo.keys())
+            exit(0)
+        elif opt == "--version" or opt == "-v":
+            printVersion()
             exit(0)
         else:
             printHelp()
             raise ValueError("Unknown argument: ", opt)
 
-    if not accountInfo:
+    if not ALL:
         if not username:
             username = input("Username:")
         if not password:
-            try:
-                with safeOpen(path.join(CONFIG_DIR, "accounts.json")) as jsonFile:
-                    row = next(filter(lambda x: x.get("Username", 0) == username, json.load(jsonFile)), None)
-                    if row:
-                        password = row["Password"]
-            except (json.decoder.JSONDecodeError, FileNotFoundError):
-                pass
+            if not accountInfo:
+                accountInfo = loadAccountInfo()
+            password = accountInfo.get(username, None)
             if not password:
                 password = input("Password:")
-        accountInfo.append(username, password)
+        accountInfo[username] = password
 
     if not path.exists(CONFIG_DIR):
         print("WARNING the dir specified does not exists:", CONFIG_DIR)
         mkdir(CONFIG_DIR)
 
-    for username, password in accountInfo:
+    if SAVE:
+        with open(path.join(CONFIG_DIR, "accounts.json"), 'w', encoding='utf-8') as f:
+            json.dump(accountInfo, f, indent=4)
+        exit(0)
+
+    for username, password in accountInfo.items():
         crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
         if crunchyrollGuestPassFinder.login() and not DRY_RUN:
             if crunchyrollGuestPassFinder.isAccountNonPremium():
