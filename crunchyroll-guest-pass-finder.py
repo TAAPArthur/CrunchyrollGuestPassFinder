@@ -108,6 +108,7 @@ class CrunchyrollGuestPassFinder:
     def isAccountNonPremium(self, init=False):
         try:
             self.waitForElementToLoadByClass("premium")
+            self.waitForElementToLoadByClass("freetrial-note")
             return True
         except TimeoutException:
             self.output("Could not find indicator of non-premium account; exiting")
@@ -124,12 +125,8 @@ class CrunchyrollGuestPassFinder:
             self.waitForElementToLoad("couponcode_redeem_form")
             self.driver.find_element_by_id("couponcode_redeem_form").submit()
 
-            if not self.isAccountNonPremium():
-                self.postTakenGuestPass(code)
-                self.output("found guest pass %s; exiting" % str(code))
-                self.status = Status.ACCOUNT_ACTIVATED
-                return code
-            self.output("URL after submit:", self.driver.current_url)
+            self.postTakenGuestPass(code)
+            return code
         except TimeoutException:
             traceback.print_exc(2)
             pass
@@ -161,19 +158,13 @@ class CrunchyrollGuestPassFinder:
                 if self.isTimeout():
                     self.status = Status.TIMEOUT
                     return None
-
                 for code in unusedGuestCodes:
                     if self.activateCode(code):
                         return code
                     usedCodes.append(code)
-
-                if(len(unusedGuestCodes)):  # only check if we just attempted
-                    if not self.isAccountNonPremium():
-                        self.output("currentURL:", self.driver.current_url)
-                        self.status = Status.ACCOUNT_ACTIVATED
-                        return None
                 time.sleep(self.DELAY)
             except TimeoutException:
+                self.output("got timeout")
                 pass
             except BrokenPipeError:
                 traceback.print_exc(2)
@@ -183,7 +174,13 @@ class CrunchyrollGuestPassFinder:
             self.output("attempting to post that guest pass was taken")
             self.driver.get(self.endOfGuestPassThreadPage)
             self.driver.find_element_by_id("newforumpost").send_keys(guestPass + " has been taken.\nThanks")
-            self.driver.find_element_by_name("post_btn").click()
+
+            if not self.isAccountNonPremium():
+                self.driver.find_element_by_name("post_btn").click()
+                self.output("found guest pass %s; exiting" % str(guestPass))
+                self.status = Status.ACCOUNT_ACTIVATED
+            else:
+                self.output("Aborting; our account is still not active")
         except TimeoutException:
             self.output("failed to post guest pass")
 
