@@ -288,39 +288,38 @@ if __name__ == "__main__":
     username = password = False
     accountInfo = None
     shortargs = "aghsvk:mp:u:d:t:"
-    longargs = ["graphical", "help", "version", "kill-time=", "config-dir=", "delay=", "auto", "dry-run", "driver=", "username=", "password=", "timeout=", "save"]
+    longargs = ["auto", "config-dir=", "delay=", "driver=", "dry-run", "graphical", "help", "kill-time=", "password=", "save", "timeout=", "username=", "version"]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
-        if opt == "-a" or opt == "--auto":
+        if opt == "--auto" or opt == "-a":
             ALL = True
             accountInfo = loadAccountInfo()
-        elif opt == "-p" or opt == "--password":
-            password = value
-        elif opt == "-u" or opt == "--username":
-            username = value
-        elif opt == "-s" or opt == "--save":
-            accountInfo = loadAccountInfo()
-            SAVE = True
-        elif opt == "--driver":
-            CrunchyrollGuestPassFinder.DRIVER = value
-        elif opt == "-g" or opt == "--graphical":
-            CrunchyrollGuestPassFinder.HEADLESS = False
-        elif opt == "-k" or opt == "--kill-time":
-            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
-
-        elif opt == "-t" or opt == "--timeout":
-            CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
-        elif opt == "-d" or opt == "--delay":
-            CrunchyrollGuestPassFinder.DELAY = int(value)
         elif opt == "--config-dir":
             CONFIG_DIR = value
+        elif opt == "--delay" or opt == "-d":
+            CrunchyrollGuestPassFinder.DELAY = int(value)
+        elif opt == "--driver":
+            CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "--dry-run":
             DRY_RUN = 1
-        elif opt == "-v" or opt == "--version":
-            printVersion()
-            exit(0)
-        elif opt == "-h" or opt == "--help":
+        elif opt == "--graphical" or opt == "-g":
+            CrunchyrollGuestPassFinder.HEADLESS = False
+        elif opt == "--help" or opt == "-h":
             printHelp()
+            exit(0)
+        elif opt == "--kill-time" or opt == "-k":
+            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
+        elif opt == "--password" or opt == "-p":
+            password = value
+        elif opt == "--save" or opt == "-s":
+            accountInfo = loadAccountInfo()
+            SAVE = True
+        elif opt == "--timeout" or opt == "-t":
+            CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
+        elif opt == "--username" or opt == "-u":
+            username = value
+        elif opt == "--version" or opt == "-v":
+            printVersion()
             exit(0)
         else:
             printHelp()
