@@ -20,16 +20,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-class Status(Enum):
-    INIT = 61
-    LOGIN_FAILED = 62
-    LOGGED_IN = 62
-    SEARCHING = 63
-    ACCOUNT_ACTIVATED = 0
-    ACCOUNT_ALREADY_ACTIVATED = 65
-    TIMEOUT = 64
-
-
 CONFIG_DIR = str(Path.home()) + "/.config/crunchyroll-guest-pass-finder/"
 
 
@@ -50,8 +40,6 @@ class CrunchyrollGuestPassFinder:
     KILL_TIME = 36000  # after x seconds the program will quit with exit code 64
     DELAY = 10  # the delay between refreshing the guest pass page
 
-    status = Status.INIT
-
     def __init__(self, username, password):
         self.output("starting bot")
         options = Options()
@@ -69,7 +57,6 @@ class CrunchyrollGuestPassFinder:
         self.startTime = time.time()
         self.username = username
         self.password = password
-        self.output("initial status", self.status)
 
     def isHeadless(self):
         return self.HEADLESS
@@ -90,11 +77,8 @@ class CrunchyrollGuestPassFinder:
         self.output("logged in")
         self.output(self.driver.current_url)
         if self.driver.current_url == self.loginPage:
-            self.saveScreenshot("logged-in-failed.png")
-            self.status = Status.LOGIN_FAILED
             return False
 
-        self.status = Status.LOGGED_IN
         return True
 
     def waitForElementToLoad(self, id):
@@ -105,15 +89,13 @@ class CrunchyrollGuestPassFinder:
         element_present = EC.presence_of_element_located((By.CLASS_NAME, clazz))
         WebDriverWait(self.driver, self.PAGE_LOAD_TIMEOUT).until(element_present)
 
-    def isAccountNonPremium(self, init=False):
+    def isAccountNonPremium(self):
         try:
             self.waitForElementToLoadByClass("premium")
+            self.waitForElementToLoadByClass("freetrial-note")
             return True
         except TimeoutException:
-            self.output("Could not find indicator of non-premium account; exiting")
-            if init:
-                self.status = Status.ACCOUNT_ALREADY_ACTIVATED
-            self.saveScreenshot("alreadyPremium")
+            self.output("Could not find indicator of non-premium account {}; exiting".format(self.username))
             return False
 
     def activateCode(self, code):
@@ -124,24 +106,16 @@ class CrunchyrollGuestPassFinder:
             self.waitForElementToLoad("couponcode_redeem_form")
             self.driver.find_element_by_id("couponcode_redeem_form").submit()
 
-            if not self.isAccountNonPremium():
-                self.postTakenGuestPass(code)
-                self.output("found guest pass %s; exiting" % str(code))
-                self.status = Status.ACCOUNT_ACTIVATED
-                return code
-            self.output("URL after submit:", self.driver.current_url)
+            return self.postTakenGuestPass(code)
         except TimeoutException:
             traceback.print_exc(2)
             pass
         return None
 
-    def startFreeAccess(self):
+    def findGuestPassAndActivateAccount(self):
         count = -1
         usedCodes = []
         timeOfLastCheck = 0
-        self.status = Status.SEARCHING
-        if not self.isAccountNonPremium(True):
-            return None
         self.output("searching for guest passes")
         while True:
             count += 1
@@ -159,21 +133,14 @@ class CrunchyrollGuestPassFinder:
                     sys.stdout.flush()
                     timeOfLastCheck = time.time()
                 if self.isTimeout():
-                    self.status = Status.TIMEOUT
                     return None
-
                 for code in unusedGuestCodes:
                     if self.activateCode(code):
                         return code
                     usedCodes.append(code)
-
-                if(len(unusedGuestCodes)):  # only check if we just attempted
-                    if not self.isAccountNonPremium():
-                        self.output("currentURL:", self.driver.current_url)
-                        self.status = Status.ACCOUNT_ACTIVATED
-                        return None
                 time.sleep(self.DELAY)
             except TimeoutException:
+                self.output("got timeout")
                 pass
             except BrokenPipeError:
                 traceback.print_exc(2)
@@ -183,9 +150,16 @@ class CrunchyrollGuestPassFinder:
             self.output("attempting to post that guest pass was taken")
             self.driver.get(self.endOfGuestPassThreadPage)
             self.driver.find_element_by_id("newforumpost").send_keys(guestPass + " has been taken.\nThanks")
-            self.driver.find_element_by_name("post_btn").click()
+
+            if not self.isAccountNonPremium():
+                self.driver.find_element_by_name("post_btn").click()
+                self.output("found guest pass %s; exiting" % str(guestPass))
+                return guestPass
+            else:
+                self.output("Aborting; our account is still not active")
         except TimeoutException:
             self.output("failed to post guest pass")
+        return False
 
     def findGuestPass(self):
         guestCodes = []
@@ -224,9 +198,6 @@ class CrunchyrollGuestPassFinder:
         for i in range(1, len(message)):
             formattedMessage += str(message[i])
         print(time, formattedMessage, flush=True)
-
-    def getStatus(self):
-        return self.status.value
 
     def close(self):
         self.output("exiting")
@@ -336,8 +307,6 @@ if __name__ == "__main__":
     for username, password in accountInfo:
         crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
         if crunchyrollGuestPassFinder.login() and not DRY_RUN:
-            crunchyrollGuestPassFinder.startFreeAccess()
+            if crunchyrollGuestPassFinder.isAccountNonPremium():
+                crunchyrollGuestPassFinder.findGuestPassAndActivateAccount()
         crunchyrollGuestPassFinder.close()
-        print("status = %d" % crunchyrollGuestPassFinder.getStatus())
-
-    exit(crunchyrollGuestPassFinder.getStatus())
