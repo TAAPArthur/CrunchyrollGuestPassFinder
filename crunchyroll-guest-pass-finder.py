@@ -90,8 +90,7 @@ class CrunchyrollGuestPassFinder:
 
     def isAccountNonPremium(self):
         try:
-            self.waitForElementToLoadByClass("premium")
-            self.waitForElementToLoadByClass("freetrial-note")
+            self.waitForElementToLoad("header_try_premium_free")
             return True
         except TimeoutException:
             self.output("Could not find indicator of non-premium account {}; exiting".format(self.username))
@@ -259,11 +258,11 @@ def loadAccountInfo():
 
 if __name__ == "__main__":
     DATE_FORMAT = "%y/%m/%d"
-    DRY_RUN = 0
-    SAVE = False
-    ALL = False
+    dry_run = 0
+    save_account_info = False
     username = password = False
     accountInfo = None
+    credentials = None
     shortargs = "aghsvk:mp:u:d:t:"
     longargs = ["account-file", "auto", "config-dir=", "delay=", "driver=", "dry-run", "graphical", "help", "kill-time=", "password=", "save", "timeout=", "username=", "users", "version"]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
@@ -272,8 +271,8 @@ if __name__ == "__main__":
             print(getAccountPath())
             exit(0)
         if opt == "--auto" or opt == "-a":
-            ALL = True
             accountInfo = loadAccountInfo()
+            credentials = accountInfo.items()
         elif opt == "--config-dir":
             CONFIG_DIR = value
         elif opt == "--delay" or opt == "-d":
@@ -281,7 +280,7 @@ if __name__ == "__main__":
         elif opt == "--driver":
             CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "--dry-run":
-            DRY_RUN = 1
+            dry_run = 1
         elif opt == "--graphical" or opt == "-g":
             CrunchyrollGuestPassFinder.HEADLESS = False
         elif opt == "--help" or opt == "-h":
@@ -293,7 +292,7 @@ if __name__ == "__main__":
             password = value
         elif opt == "--save" or opt == "-s":
             accountInfo = loadAccountInfo()
-            SAVE = True
+            save_account_info = True
         elif opt == "--timeout" or opt == "-t":
             CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
         elif opt == "--username" or opt == "-u":
@@ -309,7 +308,7 @@ if __name__ == "__main__":
             printHelp()
             raise ValueError("Unknown argument: ", opt)
 
-    if not ALL:
+    if not credentials:
         if not username:
             username = input("Username:")
         if not password:
@@ -318,20 +317,20 @@ if __name__ == "__main__":
             password = accountInfo.get(username, None)
             if not password:
                 password = input("Password:")
-        accountInfo[username] = password
+        credentials = [(username, password)]
 
     if not path.exists(CONFIG_DIR):
         print("WARNING the dir specified does not exists:", CONFIG_DIR)
         mkdir(CONFIG_DIR)
 
-    if SAVE:
+    if save_account_info:
         with open(path.join(CONFIG_DIR, "accounts.json"), 'w', encoding='utf-8') as f:
             json.dump(accountInfo, f, indent=4)
         exit(0)
 
-    for username, password in accountInfo.items():
+    for username, password in credentials:
         crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
-        if crunchyrollGuestPassFinder.login() and not DRY_RUN:
+        if crunchyrollGuestPassFinder.login() and not dry_run:
             if crunchyrollGuestPassFinder.isAccountNonPremium():
                 crunchyrollGuestPassFinder.findGuestPassAndActivateAccount()
         crunchyrollGuestPassFinder.close()
