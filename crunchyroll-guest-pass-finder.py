@@ -1,206 +1,142 @@
 #!/usr/bin/python3
 
-from datetime import datetime, timedelta
-from enum import Enum
-from os import path, mkdir
-from pathlib import Path
-from random import shuffle
 import getopt
 import json
+import logging
 import re
 import sys
 import time
 import traceback
+from datetime import datetime, timedelta
+from enum import Enum
+from os import mkdir, path
+from pathlib import Path
+from random import shuffle
 
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
+import cloudscraper
+from bs4 import BeautifulSoup
 
 CONFIG_DIR = str(Path.home()) + "/.config/crunchyroll-guest-pass-finder/"
 
 
-class CrunchyrollGuestPassFinder:
+class CrunchyrollGuestPassFinder():
 
     endOfGuestPassThreadPage = "http://www.crunchyroll.com/forumtopic-803801/the-official-guest-pass-thread-read-opening-post-first?pg=last"
     redeemGuestPassPage = "http://www.crunchyroll.com/coupon_redeem?code="
-    failedGuestPassRedeemPage = "http://www.crunchyroll.com/coupon_redeem"
-    loginPage = "https://www.crunchyroll.com/login"
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
 
-    HEADLESS = True
-    DRIVER = False
-
-    PAGE_LOAD_TIMEOUT = 20
     KILL_TIME = 36000  # after x seconds the program will quit with exit code 64
     DELAY = 10  # the delay between refreshing the guest pass page
 
-    def __init__(self, username, password):
-        self.output("starting bot")
-        options = Options()
-        if self.isHeadless():
-            options.add_argument("--headless")
-        if not self.DRIVER:
-            firefox_profile = webdriver.FirefoxProfile()
-            firefox_profile.set_preference('permissions.default.image', 2)
-            firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
-            self.driver = webdriver.Firefox(service_log_path="/dev/null", options=options, firefox_profile=firefox_profile)
-        else:
-            self.driver = getattr(webdriver, self.DRIVER)(service_log_path="/dev/null", options=options)
-        self.driver.implicitly_wait(self.PAGE_LOAD_TIMEOUT)
-        self.driver.set_page_load_timeout(self.PAGE_LOAD_TIMEOUT)
-        self.startTime = time.time()
-        self.username = username
-        self.password = password
+    start_session_url = 'https://api.crunchyroll.com/start_session.0.json'
+    login_url = 'https://api.crunchyroll.com/login.0.json'
+    api_auth_url = 'https://api-manga.crunchyroll.com/cr_authenticate?session_id={}&version=0&format=json'
 
-    def isHeadless(self):
-        return self.HEADLESS
+    _access_token = 'WveH9VkPLrXvuNm'
+    _access_type = 'com.crunchyroll.crunchyroid'
 
-    def isTimeout(self):
-        if time.time() - self.startTime >= self.KILL_TIME:
+    def __init__(self, session):
+        self.session = session
+
+    def _get_session_id(self):
+        data = self.session.post(
+            self.start_session_url,
+            data={
+                'device_id': '1234567',
+                'device_type': self._access_type,
+                'access_token': self._access_token,
+            }
+        ).json()['data']
+        return data['session_id']
+
+    def login(self, username, password):
+        self.session_id = self._get_session_id()
+
+        login = self.session.post(self.login_url,
+                                  data={
+                                      'session_id': self.session_id,
+                                      'account': username,
+                                      'password': password
+                                  }).json()
+        if 'data' in login:
             return True
-        else:
-            return False
-
-    def login(self):
-        self.output("attempting to login to " + self.username)
-        self.driver.get(self.loginPage)
-        self.driver.find_element_by_id("login_form_name").send_keys(self.username)
-        self.driver.find_element_by_id("login_form_password").send_keys(self.password)
-        self.driver.find_element_by_class_name("type-primary").click()
-
-        self.output("logged in")
-        self.output(self.driver.current_url)
-        if self.driver.current_url == self.loginPage:
-            return False
-
-        return True
-
-    def waitForElementToLoad(self, id):
-        element_present = EC.presence_of_element_located((By.ID, id))
-        WebDriverWait(self.driver, self.PAGE_LOAD_TIMEOUT).until(element_present)
-
-    def waitForElementToLoadByClass(self, clazz):
-        element_present = EC.presence_of_element_located((By.CLASS_NAME, clazz))
-        WebDriverWait(self.driver, self.PAGE_LOAD_TIMEOUT).until(element_present)
+        logging.info("Failed to login to %s", username)
+        return False
 
     def isAccountNonPremium(self):
-        try:
-            self.waitForElementToLoad("header_try_premium_free")
-            return True
-        except TimeoutException:
-            self.output("Could not find indicator of non-premium account {}; exiting".format(self.username))
-            return False
+        r = self.session.get(self.api_auth_url.format(self.session_id))
+        return not r.json()['data']["user"]['premium']
+
+    def get_from_data(self, url, formClassName):
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.content, "lxml")
+        form = soup.find("form", {"id": formClassName})
+        data = {}
+
+        for child in form.findAll("input"):
+            if child.has_attr("name"):
+                data[child["name"]] = child["value"]
+
+        url = form["action"]
+        if url[0] == "/":
+            url = self.homePage + url
+        logging.debug("From url: %s From data: %s", url, data)
+        return url, data
 
     def activateCode(self, code):
-        try:
-            self.driver.get(self.redeemGuestPassPage + code)
-
-            self.output("currentURL:", self.driver.current_url)
-            self.waitForElementToLoad("couponcode_redeem_form")
-            self.driver.find_element_by_id("couponcode_redeem_form").submit()
-
-            return self.postTakenGuestPass(code)
-        except TimeoutException:
-            traceback.print_exc(2)
-            pass
-        return None
+        action, data = self.get_from_data(self.redeemGuestPassPage + code, "couponcode_redeem_form")
+        r = self.session.post(action, data=data)
 
     def findGuestPassAndActivateAccount(self):
         count = -1
         usedCodes = []
         timeOfLastCheck = 0
-        self.output("searching for guest passes")
+        logging.info("searching for guest passes")
+        startTime = time.time()
         while True:
             count += 1
-            try:
-                guestCodes = self.findGuestPass()
+            guestCodes = self.findGuestPass()
 
-                unusedGuestCodes = [x for x in guestCodes if x not in usedCodes]
+            unusedGuestCodes = [x for x in guestCodes if x not in usedCodes]
 
-                if len(unusedGuestCodes) > 0:
-                    self.output("Trial ", count, ": found ", len(unusedGuestCodes), " codes: ", unusedGuestCodes, "; ", len(usedCodes), " others have been used: ", usedCodes)
-                    timeOfLastCheck = time.time()
-                    shuffle(unusedGuestCodes)
-                elif time.time() - timeOfLastCheck > 600:
-                    self.output("Trial ", count)
-                    sys.stdout.flush()
-                    timeOfLastCheck = time.time()
-                if self.isTimeout():
-                    return None
-                for code in unusedGuestCodes:
-                    if self.activateCode(code):
-                        return code
-                    usedCodes.append(code)
-                time.sleep(self.DELAY)
-            except TimeoutException:
-                self.output("got timeout")
-                pass
-            except BrokenPipeError:
-                traceback.print_exc(2)
+            if len(unusedGuestCodes) > 0:
+                logging.info("Trial %d: found %d codes %s; %d others have been used: %s", count, len(unusedGuestCodes), unusedGuestCodes, len(usedCodes), usedCodes)
+                timeOfLastCheck = time.time()
+                shuffle(unusedGuestCodes)
+            elif time.time() - timeOfLastCheck > 600:
+                logging.info("Trial %d", count)
+                timeOfLastCheck = time.time()
+
+            if time.time() - startTime >= self.KILL_TIME:
+                return None
+            for code in unusedGuestCodes:
+                logging.info("Attempting to use code: %s", code)
+                self.activateCode(code)
+                if not self.isAccountNonPremium():
+                    self.postTakenGuestPass(code)
+                    return code
+                usedCodes.append(code)
+            time.sleep(self.DELAY)
 
     def postTakenGuestPass(self, guestPass):
-        try:
-            self.output("attempting to post that guest pass was taken")
-            self.driver.get(self.endOfGuestPassThreadPage)
-            self.driver.find_element_by_id("newforumpost").send_keys(guestPass + " has been taken.\nThanks")
-
-            if not self.isAccountNonPremium():
-                self.driver.find_element_by_name("post_btn").click()
-                self.output("found guest pass %s; exiting" % str(guestPass))
-                return guestPass
-            else:
-                self.output("Aborting; our account is still not active")
-        except TimeoutException:
-            self.output("failed to post guest pass")
-        return False
+        logging.info("Attempting to post that guest pass was taken")
+        action, data = self.get_from_data(self.endOfGuestPassThreadPage, "RpcApiForum_CreatePost")
+        data["newforumpost"] = guestPass + " has been taken.\nThanks"
+        r = self.session.post(action, data=data)
 
     def findGuestPass(self):
-        guestCodes = []
-        inValidGuestCodes = []
-        try:
-            self.driver.get(self.endOfGuestPassThreadPage)
-            classes = self.driver.find_elements_by_class_name("showforumtopic-message-contents-text")
-            for i in range(len(classes)):
-
-                matches = re.findall(self.GUEST_PASS_PATTERN, classes[i].text, re.M)
-
-                if matches:
-                    for n in range(len(matches)):
-                        if matches[n] not in guestCodes:
-
-                            guestCodes.append(matches[n])
-                        elif matches[n] not in inValidGuestCodes:
-                            inValidGuestCodes.append(matches[n])
-        except TimeoutException:
-            traceback.print_exc(2)
-        for i in range(len(inValidGuestCodes)):
-            guestCodes.remove(inValidGuestCodes[i])
-
+        guestCodes = set()
+        r = self.session.get(self.endOfGuestPassThreadPage)
+        soup = BeautifulSoup(r.content, "lxml")
+        messages = soup.findAll("div", {"class": "showforumtopic-message-contents-text"})
+        for message in messages:
+            matches = re.findall(self.GUEST_PASS_PATTERN, message.getText(), re.M)
+            if matches:
+                for n in range(len(matches)):
+                    if matches[n] not in guestCodes:
+                        guestCodes.add(matches[n])
         return guestCodes
-
-    def saveScreenshot(self, fileName="screenshot.png"):
-        #fileName += ".png"
-        #self.output("saving screen shot to ", fileName)
-        #self.driver.save_screenshot(CONFIG_DIR + fileName)
-        pass
-
-    def output(self, *message):
-
-        time = datetime.now().strftime("%Y/%m/%d %H:%M:%S") + ":"
-        formattedMessage = message[0]
-        for i in range(1, len(message)):
-            formattedMessage += str(message[i])
-        print(time, formattedMessage, flush=True)
-
-    def close(self):
-        self.output("exiting")
-        if self.isHeadless():
-            self.driver.quit()
 
 
 def safeOpen(fileName):
@@ -220,10 +156,9 @@ Args:
     --auto, -a                  Load the username/password from accounts.json in CONFIG_DIR
     --config-dir                The location on the config files
     --delay, -d                 How often to rescan the guest pass page
-    --driver                    Specifies the name of the driver to use (Firefox (default) or PhantomJS)
     --dry-run                   Login but don't do anything
-    --graphical, -g             Runs in a non-headless manner. Useless if the driver is PhantomJS
     --help, -h                  Prints this help message
+    --log-level                 Controls how verbose the loggin is
     --killtime, -k              How much time in seconds until the programs kills itself
     --password, -p              Specifies the password to use
     --username, -u              Specifies the username to use
@@ -234,7 +169,7 @@ Args:
 
 
 def printVersion():
-    print(2.1)
+    print(3.0)
 
 
 def getAccountPath():
@@ -247,7 +182,7 @@ def loadAccountInfo():
         with safeOpen(getAccountPath()) as jsonFile:
             accounts = json.load(jsonFile)
     except (json.decoder.JSONDecodeError, FileNotFoundError):
-        print("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
+        logging.error("Add account data to {}".format(path.join(CONFIG_DIR, "accounts.json")))
         exit(2)
     if isinstance(accounts, list):
         accountInfo = {account["Username"]: account["Password"] for account in accounts}
@@ -263,8 +198,10 @@ if __name__ == "__main__":
     username = password = False
     accountInfo = None
     credentials = None
+
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
     shortargs = "aghsvk:mp:u:d:t:"
-    longargs = ["account-file", "auto", "config-dir=", "delay=", "driver=", "dry-run", "graphical", "help", "kill-time=", "password=", "save", "timeout=", "username=", "users", "version"]
+    longargs = ["account-file", "auto", "config-dir=", "delay=", "dry-run", "help", "kill-time=", "log-level=", "password=", "save", "timeout=", "username=", "users", "version"]
     optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
     for opt, value in optlist:
         if opt == "--account-file":
@@ -275,14 +212,12 @@ if __name__ == "__main__":
             credentials = accountInfo.items()
         elif opt == "--config-dir":
             CONFIG_DIR = value
+        elif opt == "--log-level":
+            logging.getLogger().setLevel(value.upper())
         elif opt == "--delay" or opt == "-d":
             CrunchyrollGuestPassFinder.DELAY = int(value)
-        elif opt == "--driver":
-            CrunchyrollGuestPassFinder.DRIVER = value
         elif opt == "--dry-run":
             dry_run = 1
-        elif opt == "--graphical" or opt == "-g":
-            CrunchyrollGuestPassFinder.HEADLESS = False
         elif opt == "--help" or opt == "-h":
             printHelp()
             exit(0)
@@ -293,8 +228,6 @@ if __name__ == "__main__":
         elif opt == "--save" or opt == "-s":
             accountInfo = loadAccountInfo()
             save_account_info = True
-        elif opt == "--timeout" or opt == "-t":
-            CrunchyrollGuestPassFinder.PAGE_LOAD_TIMEOUT = int(value)
         elif opt == "--username" or opt == "-u":
             username = value
         elif opt == "--users" or opt == "-u":
@@ -320,7 +253,7 @@ if __name__ == "__main__":
         credentials = [(username, password)]
 
     if not path.exists(CONFIG_DIR):
-        print("WARNING the dir specified does not exists:", CONFIG_DIR)
+        logging.warning("the dir specified does not exists: %s", CONFIG_DIR)
         mkdir(CONFIG_DIR)
 
     if save_account_info:
@@ -329,8 +262,10 @@ if __name__ == "__main__":
         exit(0)
 
     for username, password in credentials:
-        crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(username, password)
-        if crunchyrollGuestPassFinder.login() and not dry_run:
+        crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(cloudscraper.CloudScraper())
+        if crunchyrollGuestPassFinder.login(username, password) and not dry_run:
+            logging.info("logged into %s", username)
             if crunchyrollGuestPassFinder.isAccountNonPremium():
                 crunchyrollGuestPassFinder.findGuestPassAndActivateAccount()
-        crunchyrollGuestPassFinder.close()
+            else:
+                logging.info("Account '%s' is already premium", username)
