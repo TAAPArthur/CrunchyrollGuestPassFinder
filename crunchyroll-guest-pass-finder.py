@@ -88,10 +88,11 @@ class CrunchyrollGuestPassFinder():
 
     def findGuestPassAndActivateAccount(self):
         count = -1
-        usedCodes = []
         timeOfLastCheck = 0
         logging.info("searching for guest passes")
-        startTime = time.time()
+
+        usedCodes = list(self.findGuestPass())
+        logging.info("Assuming %s are already used", usedCodes)
         while True:
             count += 1
             guestCodes = self.findGuestPass()
