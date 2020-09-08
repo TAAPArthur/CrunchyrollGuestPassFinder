@@ -1,13 +1,11 @@
 #!/usr/bin/python3
 
-import getopt
+import argparse
 import json
 import logging
 import re
 import sys
 import time
-import traceback
-from datetime import datetime, timedelta
 from enum import Enum
 from os import mkdir, path
 from pathlib import Path
@@ -26,7 +24,6 @@ class CrunchyrollGuestPassFinder():
     homePage = "http://www.crunchyroll.com"
     GUEST_PASS_PATTERN = "[A-Z0-9]{11}"
 
-    KILL_TIME = 36000  # after x seconds the program will quit with exit code 64
     DELAY = 10  # the delay between refreshing the guest pass page
 
     start_session_url = 'https://api.crunchyroll.com/start_session.0.json'
@@ -108,8 +105,6 @@ class CrunchyrollGuestPassFinder():
                 logging.info("Trial %d", count)
                 timeOfLastCheck = time.time()
 
-            if time.time() - startTime >= self.KILL_TIME:
-                return None
             for code in unusedGuestCodes:
                 logging.info("Attempting to use code: %s", code)
                 self.activateCode(code)
@@ -144,34 +139,6 @@ def safeOpen(fileName):
     return open(fileName, mode)
 
 
-def printHelp():
-    print(
-        """
-Usage: crunchyroll-guest-pass-finder [arg]
-Fishes for Crunchyroll guest passes
-
-If username/password is not specified, the user will be prompted to enter them
-
-Args:
-    --auto, -a                  Load the username/password from accounts.json in CONFIG_DIR
-    --config-dir                The location on the config files
-    --delay, -d                 How often to rescan the guest pass page
-    --dry-run                   Login but don't do anything
-    --help, -h                  Prints this help message
-    --log-level                 Controls how verbose the loggin is
-    --killtime, -k              How much time in seconds until the programs kills itself
-    --password, -p              Specifies the password to use
-    --username, -u              Specifies the username to use
-    --version, -v               Prints the version
-
-"""
-    )
-
-
-def printVersion():
-    print(3.0)
-
-
 def getAccountPath():
     return path.join(CONFIG_DIR, "accounts.json")
 
@@ -192,54 +159,35 @@ def loadAccountInfo():
 
 
 if __name__ == "__main__":
-    DATE_FORMAT = "%y/%m/%d"
-    dry_run = 0
-    save_account_info = False
     username = password = False
     accountInfo = None
     credentials = None
 
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
-    shortargs = "aghsvk:mp:u:d:t:"
-    longargs = ["account-file", "auto", "config-dir=", "delay=", "dry-run", "help", "kill-time=", "log-level=", "password=", "save", "timeout=", "username=", "users", "version"]
-    optlist, args = getopt.getopt(sys.argv[1:], shortargs, longargs)
-    for opt, value in optlist:
-        if opt == "--account-file":
-            print(getAccountPath())
-            exit(0)
-        if opt == "--auto" or opt == "-a":
-            accountInfo = loadAccountInfo()
-            credentials = accountInfo.items()
-        elif opt == "--config-dir":
-            CONFIG_DIR = value
-        elif opt == "--log-level":
-            logging.getLogger().setLevel(value.upper())
-        elif opt == "--delay" or opt == "-d":
-            CrunchyrollGuestPassFinder.DELAY = int(value)
-        elif opt == "--dry-run":
-            dry_run = 1
-        elif opt == "--help" or opt == "-h":
-            printHelp()
-            exit(0)
-        elif opt == "--kill-time" or opt == "-k":
-            CrunchyrollGuestPassFinder.KILL_TIME = int(value)
-        elif opt == "--password" or opt == "-p":
-            password = value
-        elif opt == "--save" or opt == "-s":
-            accountInfo = loadAccountInfo()
-            save_account_info = True
-        elif opt == "--username" or opt == "-u":
-            username = value
-        elif opt == "--users" or opt == "-u":
-            accountInfo = loadAccountInfo()
-            print(accountInfo.keys())
-            exit(0)
-        elif opt == "--version" or opt == "-v":
-            printVersion()
-            exit(0)
-        else:
-            printHelp()
-            raise ValueError("Unknown argument: ", opt)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--auto", "-a", help="Attempt to activate all credentials")
+    parser.add_argument("--delay", "-d", type=int, default=CrunchyrollGuestPassFinder.DELAY, help="the delay between refreshing the guest pass page in seconds")
+    parser.add_argument("--log-level", default="INFO", choices=logging._levelToName.values(), help="Controls verbosity of logs")
+    parser.add_argument("--dry-run", action="store_const", const=True, default=False)
+    parser.add_argument("--username", "-u", help="Attempt to activate the specified account; if a password is known it will be used unless -p is explictly specified")
+    parser.add_argument("--password", "-p", help="Password for specified username; if not provided will be read from stdin")
+    parser.add_argument("--save", "-s", action="store_const", const=True, default=False)
+    parser.add_argument("--list-users", action="store_const", const=True, default=False)
+    parser.add_argument("-v", "--version", action="version", version="3.0")
+    namespace = parser.parse_args()
+    if namespace.list_users:
+        accountInfo = loadAccountInfo()
+        for key in accountInfo.keys():
+            print(key)
+        exit(0)
+    if namespace.auto:
+        accountInfo = loadAccountInfo()
+        credentials = accountInfo.items()
+    CrunchyrollGuestPassFinder.DELAY = namespace.delay
+    logging.getLogger().setLevel(namespace.log_level)
+    username = namespace.username
+    password = namespace.password
 
     if not credentials:
         if not username:
@@ -256,14 +204,14 @@ if __name__ == "__main__":
         logging.warning("the dir specified does not exists: %s", CONFIG_DIR)
         mkdir(CONFIG_DIR)
 
-    if save_account_info:
+    if namespace.save:
         with open(path.join(CONFIG_DIR, "accounts.json"), 'w', encoding='utf-8') as f:
             json.dump(accountInfo, f, indent=4)
         exit(0)
 
     for username, password in credentials:
         crunchyrollGuestPassFinder = CrunchyrollGuestPassFinder(cloudscraper.CloudScraper())
-        if crunchyrollGuestPassFinder.login(username, password) and not dry_run:
+        if crunchyrollGuestPassFinder.login(username, password) and not namespace.dry_run:
             logging.info("logged into %s", username)
             if crunchyrollGuestPassFinder.isAccountNonPremium():
                 crunchyrollGuestPassFinder.findGuestPassAndActivateAccount()
