@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 
 import argparse
 import json
@@ -175,6 +176,12 @@ if __name__ == "__main__":
     parser.add_argument("--save", "-s", action="store_const", const=True, default=False)
     parser.add_argument("--list-users", action="store_const", const=True, default=False)
     parser.add_argument("-v", "--version", action="version", version="3.0")
+
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
     namespace = parser.parse_args()
     if namespace.list_users:
         accountInfo = loadAccountInfo()
