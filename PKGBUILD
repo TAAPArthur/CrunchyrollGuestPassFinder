@@ -8,7 +8,7 @@ pkgdesc='Automatically get Crunchyroll guest passes for free'
 url="https://github.com/TAAPArthur/CrunchyrollGuestPassFinder"
 arch=('any')
 license=('MIT')
-depends=('python3' 'python-selenium' )
+depends=('python3' 'python-beautifulsoup4' 'python-cloudscraper' )
 optdepends=('firefox: to use Firefox driver (default)' 'geckodriver: to use Firefox driver (default)')
 md5sums=('SKIP')
 
