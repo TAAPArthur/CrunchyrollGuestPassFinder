@@ -168,7 +168,7 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--auto", "-a", help="Attempt to activate all credentials")
+    parser.add_argument("--auto", "-a", action="store_const", const=True, default=False, help="Attempt to activate all credentials")
     parser.add_argument("--delay", "-d", type=int, default=CrunchyrollGuestPassFinder.DELAY, help="the delay between refreshing the guest pass page in seconds")
     parser.add_argument("--log-level", default="INFO", choices=logging._levelToName.values(), help="Controls verbosity of logs")
     parser.add_argument("--dry-run", action="store_const", const=True, default=False)
