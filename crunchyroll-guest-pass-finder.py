@@ -14,6 +14,7 @@ from random import shuffle
 
 import cloudscraper
 from bs4 import BeautifulSoup
+from requests.exceptions import ConnectionError, ReadTimeout
 
 CONFIG_DIR = str(Path.home()) + "/.config/crunchyroll-guest-pass-finder/"
 
@@ -94,27 +95,30 @@ class CrunchyrollGuestPassFinder():
         usedCodes = list(self.findGuestPass())
         logging.info("Assuming %s are already used", usedCodes)
         while True:
-            count += 1
-            guestCodes = self.findGuestPass()
-
-            unusedGuestCodes = [x for x in guestCodes if x not in usedCodes]
-
-            if len(unusedGuestCodes) > 0:
-                logging.info("Trial %d: found %d codes %s; %d others have been used: %s", count, len(unusedGuestCodes), unusedGuestCodes, len(usedCodes), usedCodes)
-                timeOfLastCheck = time.time()
-                shuffle(unusedGuestCodes)
-            elif time.time() - timeOfLastCheck > 600:
-                logging.info("Trial %d", count)
-                timeOfLastCheck = time.time()
-
-            for code in unusedGuestCodes:
-                logging.info("Attempting to use code: %s", code)
-                self.activateCode(code)
-                if not self.isAccountNonPremium():
-                    self.postTakenGuestPass(code)
-                    return code
-                usedCodes.append(code)
             time.sleep(self.DELAY)
+            try:
+                count += 1
+                guestCodes = self.findGuestPass()
+
+                unusedGuestCodes = [x for x in guestCodes if x not in usedCodes]
+
+                if len(unusedGuestCodes) > 0:
+                    logging.info("Trial %d: found %d codes %s; %d others have been used: %s", count, len(unusedGuestCodes), unusedGuestCodes, len(usedCodes), usedCodes)
+                    timeOfLastCheck = time.time()
+                    shuffle(unusedGuestCodes)
+                elif time.time() - timeOfLastCheck > 600:
+                    logging.info("Trial %d", count)
+                    timeOfLastCheck = time.time()
+
+                for code in unusedGuestCodes:
+                    logging.info("Attempting to use code: %s", code)
+                    self.activateCode(code)
+                    if not self.isAccountNonPremium():
+                        self.postTakenGuestPass(code)
+                        return code
+                    usedCodes.append(code)
+            except (ReadTimeout, ConnectionError) as e:
+                logging.error("Suppressing error", exc_info=e)
 
     def postTakenGuestPass(self, guestPass):
         logging.info("Attempting to post that guest pass was taken")
