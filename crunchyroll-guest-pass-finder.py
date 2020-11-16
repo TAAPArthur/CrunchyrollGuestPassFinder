@@ -65,7 +65,7 @@ class CrunchyrollGuestPassFinder():
 
     def isAccountNonPremium(self):
         r = self.session.get(self.api_auth_url.format(self.session_id))
-        return not r.json()['data']["user"]['premium']
+        return not r.json() or not r.json()['data']["user"]['premium']
 
     def get_from_data(self, url, formClassName):
         r = self.session.get(url)
